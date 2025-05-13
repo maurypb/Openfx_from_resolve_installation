@@ -1,0 +1,55 @@
+# Build artifacts
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.lib
+*.out
+
+# OFX bundle outputs
+*.ofx
+*.ofx.bundle/
+
+# Generated files
+CMakeFiles/
+CMakeCache.txt
+Makefile.in
+aclocal.m4
+autom4te.cache/
+config.log
+config.status
+configure
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+.vscode/
+.idea/
+
+# Debug logs
+/tmp/*.txt
+*.log
+
+# Dependency directories
+/lib/
+/bin/
+/build/
+/Debug/
+/Release/
+
+# CUDA specific
+*.i
+*.ii
+*.gpu
+*.ptx
+*.cubin
+*.fatbin
+
+# Metal specific
+*.metal.air
+*.metallib
