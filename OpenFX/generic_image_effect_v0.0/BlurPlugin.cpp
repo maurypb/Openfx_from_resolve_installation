@@ -148,6 +148,16 @@ void ImageBlurrer::setParams(float p_Radius, int p_Quality, float p_MaskStrength
 BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
     : GenericImageEffect(p_Handle)
 {
+    // Create a debug file in a location that doesn't need sudo
+    FILE* debugFile = fopen("/tmp/blur_plugin_debug.txt", "w");
+    if (debugFile) {
+        fprintf(debugFile, "BlurPlugin constructor called\n");
+        fclose(debugFile);
+    }
+    
+
+
+
     // Fetch the parameters
     m_Radius = fetchDoubleParam(BlurPluginParameters::PARAM_RADIUS);
     m_Quality = fetchIntParam(BlurPluginParameters::PARAM_QUALITY);

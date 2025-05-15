@@ -11,6 +11,12 @@
 #include "ofxDrawSuite.h"
 #include "ofxsSupportPrivate.h"
 
+#include "PluginClips.h"
+#include "PluginParameters.h"
+#include "BlurPluginParameters.h"
+
+
+
 #define kPluginName "GaussianBlur"
 #define kPluginGrouping "Filter"
 #define kPluginDescription "Apply Gaussian blur with optional mask control"
@@ -249,23 +255,46 @@ private:
     //void logMessage(const char* format, ...);
 };
 
-BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
-    : ImageEffect(p_Handle)
-{
 
-    m_DstClip = fetchClip(kOfxImageEffectOutputClipName);
-    m_SrcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
-    m_MaskClip = fetchClip("Mask");
+//original blurPlugin constructor
 
-    m_Radius = fetchDoubleParam("radius");
-    m_Quality = fetchIntParam("quality");
-    m_MaskStrength = fetchDoubleParam("maskStrength");
+// BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
+//     : ImageEffect(p_Handle)
+// {
+
+//     m_DstClip = fetchClip(kOfxImageEffectOutputClipName);
+//     m_SrcClip = fetchClip(kOfxImageEffectSimpleSourceClipName);
+//     m_MaskClip = fetchClip("Mask");
+
+//     m_Radius = fetchDoubleParam("radius");
+//     m_Quality = fetchIntParam("quality");
+//     m_MaskStrength = fetchDoubleParam("maskStrength");
 
 
     
-    Logger::getInstance().logMessage("BlurPlugin instance created");
+//     Logger::getInstance().logMessage("BlurPlugin instance created");
 
+// }
+
+BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
+    : ImageEffect(p_Handle)
+{
+    // Fetch clips
+    m_DstClip = fetchClip(PluginClips::CLIP_OUTPUT);
+    m_SrcClip = fetchClip(PluginClips::CLIP_SOURCE);
+    m_MaskClip = fetchClip(PluginClips::CLIP_MASK);
+
+    // Fetch parameters
+    m_Radius = fetchDoubleParam(BlurPluginParameters::PARAM_RADIUS);
+    m_Quality = fetchIntParam(BlurPluginParameters::PARAM_QUALITY);
+    m_MaskStrength = fetchDoubleParam(BlurPluginParameters::PARAM_MASK_STRENGTH);
+
+    // Log instance creation
+    Logger::getInstance().logMessage("BlurPlugin instance created");
 }
+
+
+
 
 
 BlurPlugin::~BlurPlugin()
@@ -453,60 +482,88 @@ void BlurPluginFactory::describe(OFX::ImageEffectDescriptor& p_Desc)
 
 }
 
+// original blurPluginFactory
+
+// void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
+// {
+//     // Source clip only in the filter context
+//     // Create the mandated source clip
+//     ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
+//     srcClip->addSupportedComponent(ePixelComponentRGBA);
+//     srcClip->setTemporalClipAccess(false);
+//     srcClip->setSupportsTiles(kSupportsTiles);
+//     srcClip->setIsMask(false);
+
+//     // Create the optional mask clip
+//     ClipDescriptor* maskClip = p_Desc.defineClip("Mask");
+//     maskClip->addSupportedComponent(ePixelComponentRGBA);
+//     maskClip->addSupportedComponent(ePixelComponentAlpha);
+//     maskClip->setTemporalClipAccess(false);
+//     maskClip->setSupportsTiles(kSupportsTiles);
+//     maskClip->setOptional(true);
+//     maskClip->setIsMask(true);
+
+//     // Create the mandated output clip
+//     ClipDescriptor* dstClip = p_Desc.defineClip(kOfxImageEffectOutputClipName);
+//     dstClip->addSupportedComponent(ePixelComponentRGBA);
+//     dstClip->setSupportsTiles(kSupportsTiles);
+
+//     // Make some pages and to things in
+//     PageParamDescriptor* page = p_Desc.definePageParam("Controls");
+
+//     // Blur radius parameter
+//     DoubleParamDescriptor* radiusParam = p_Desc.defineDoubleParam("radius");
+//     radiusParam->setLabels("Radius", "Radius", "Radius");
+//     radiusParam->setHint("Blur radius in pixels");
+//     radiusParam->setRange(0.0, 100.0);
+//     radiusParam->setDisplayRange(0.0, 50.0);
+//     radiusParam->setDefault(5.0);
+//     page->addChild(*radiusParam);
+
+//     // Quality parameter
+//     IntParamDescriptor* qualityParam = p_Desc.defineIntParam("quality");
+//     qualityParam->setLabels("Quality", "Quality", "Quality");
+//     qualityParam->setHint("Number of samples for the blur");
+//     qualityParam->setRange(1, 32);
+//     qualityParam->setDisplayRange(1, 16);
+//     qualityParam->setDefault(8);
+//     page->addChild(*qualityParam);
+
+//     // Mask strength parameter
+//     DoubleParamDescriptor* maskStrengthParam = p_Desc.defineDoubleParam("maskStrength");
+//     maskStrengthParam->setLabels("Mask Strength", "Mask Str", "Mask");
+//     maskStrengthParam->setHint("How strongly the mask affects the blur radius");
+//     maskStrengthParam->setRange(0.0, 1.0);
+//     maskStrengthParam->setDisplayRange(0.0, 1.0);
+//     maskStrengthParam->setDefault(1.0);
+//     page->addChild(*maskStrengthParam);
+// }
+
+
 void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
 {
-    // Source clip only in the filter context
-    // Create the mandated source clip
-    ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
-    srcClip->addSupportedComponent(ePixelComponentRGBA);
-    srcClip->setTemporalClipAccess(false);
-    srcClip->setSupportsTiles(kSupportsTiles);
-    srcClip->setIsMask(false);
+    // Define base clips (source and output)
+    PluginClips::defineBaseClips(p_Desc, kSupportsTiles);
+    
+    // Define mask clip
+    PluginClips::defineMaskClip(p_Desc, kSupportsTiles);
 
-    // Create the optional mask clip
-    ClipDescriptor* maskClip = p_Desc.defineClip("Mask");
-    maskClip->addSupportedComponent(ePixelComponentRGBA);
-    maskClip->addSupportedComponent(ePixelComponentAlpha);
-    maskClip->setTemporalClipAccess(false);
-    maskClip->setSupportsTiles(kSupportsTiles);
-    maskClip->setOptional(true);
-    maskClip->setIsMask(true);
-
-    // Create the mandated output clip
-    ClipDescriptor* dstClip = p_Desc.defineClip(kOfxImageEffectOutputClipName);
-    dstClip->addSupportedComponent(ePixelComponentRGBA);
-    dstClip->setSupportsTiles(kSupportsTiles);
-
-    // Make some pages and to things in
-    PageParamDescriptor* page = p_Desc.definePageParam("Controls");
-
-    // Blur radius parameter
-    DoubleParamDescriptor* radiusParam = p_Desc.defineDoubleParam("radius");
-    radiusParam->setLabels("Radius", "Radius", "Radius");
-    radiusParam->setHint("Blur radius in pixels");
-    radiusParam->setRange(0.0, 100.0);
-    radiusParam->setDisplayRange(0.0, 50.0);
-    radiusParam->setDefault(5.0);
-    page->addChild(*radiusParam);
-
-    // Quality parameter
-    IntParamDescriptor* qualityParam = p_Desc.defineIntParam("quality");
-    qualityParam->setLabels("Quality", "Quality", "Quality");
-    qualityParam->setHint("Number of samples for the blur");
-    qualityParam->setRange(1, 32);
-    qualityParam->setDisplayRange(1, 16);
-    qualityParam->setDefault(8);
-    page->addChild(*qualityParam);
-
-    // Mask strength parameter
-    DoubleParamDescriptor* maskStrengthParam = p_Desc.defineDoubleParam("maskStrength");
-    maskStrengthParam->setLabels("Mask Strength", "Mask Str", "Mask");
-    maskStrengthParam->setHint("How strongly the mask affects the blur radius");
-    maskStrengthParam->setRange(0.0, 1.0);
-    maskStrengthParam->setDisplayRange(0.0, 1.0);
-    maskStrengthParam->setDefault(1.0);
-    page->addChild(*maskStrengthParam);
+    // Create main parameters page
+    OFX::PageParamDescriptor* mainPage = PluginParameters::definePage(p_Desc, PluginParameters::PAGE_MAIN);
+    
+    // Define blur parameters on the main page
+    BlurPluginParameters::defineParameters(p_Desc, mainPage);
+    
+    // Optionally, create an advanced page with additional parameters
+    // OFX::PageParamDescriptor* advancedPage = PluginParameters::definePage(p_Desc, PluginParameters::PAGE_ADVANCED);
+    // BlurPluginParameters::defineAdvancedParameters(p_Desc, advancedPage);
 }
+
+
+
+
+
+
 
 ImageEffect* BlurPluginFactory::createInstance(OfxImageEffectHandle p_Handle, ContextEnum /*p_Context*/)
 {

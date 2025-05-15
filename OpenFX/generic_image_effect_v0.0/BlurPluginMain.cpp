@@ -9,7 +9,7 @@
 DEFINE_PLUGIN(
     BlurPlugin,                    // Effect class
     BlurPluginParameters,          // Parameters class
-    "com.Maury.GaussianBlur",      // Identifier
+    "com.maury.gaussianBlur",      // Identifier
     1,                             // Major version
     5                              // Minor version
 )

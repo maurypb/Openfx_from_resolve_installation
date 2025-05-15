@@ -1,0 +1,42 @@
+// Example usage in BlurPluginFactory::describeInContext
+
+#include "PluginClips.h"
+#include "PluginParameters.h"
+#include "BlurPluginParameters.h"
+
+void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
+{
+    // Define base clips (source and output)
+    PluginClips::defineBaseClips(p_Desc, kSupportsTiles);
+    
+    // Define mask clip
+    PluginClips::defineMaskClip(p_Desc, kSupportsTiles);
+
+    // Create main parameters page
+    OFX::PageParamDescriptor* mainPage = PluginParameters::definePage(p_Desc, PluginParameters::PAGE_MAIN);
+    
+    // Define blur parameters on the main page
+    BlurPluginParameters::defineParameters(p_Desc, mainPage);
+    
+    // Optionally, create an advanced page with additional parameters
+    // OFX::PageParamDescriptor* advancedPage = PluginParameters::definePage(p_Desc, PluginParameters::PAGE_ADVANCED);
+    // BlurPluginParameters::defineAdvancedParameters(p_Desc, advancedPage);
+}
+
+// Example usage in BlurPlugin constructor
+BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
+    : ImageEffect(p_Handle)
+{
+    // Fetch clips
+    m_DstClip = fetchClip(PluginClips::CLIP_OUTPUT);
+    m_SrcClip = fetchClip(PluginClips::CLIP_SOURCE);
+    m_MaskClip = fetchClip(PluginClips::CLIP_MASK);
+
+    // Fetch parameters
+    m_Radius = fetchDoubleParam(BlurPluginParameters::PARAM_RADIUS);
+    m_Quality = fetchIntParam(BlurPluginParameters::PARAM_QUALITY);
+    m_MaskStrength = fetchDoubleParam(BlurPluginParameters::PARAM_MASK_STRENGTH);
+
+    // Log instance creation
+    Logger::getInstance().logMessage("BlurPlugin instance created");
+}

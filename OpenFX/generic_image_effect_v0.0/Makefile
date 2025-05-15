@@ -47,6 +47,10 @@ BlurPlugin.ofx: $(FRAMEWORK_OBJS) $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCL
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	mkdir -p $(BUNDLE_DIR)
 	cp BlurPlugin.ofx $(BUNDLE_DIR)
+	# Create the Contents directory and Info.plist
+	mkdir -p $(dir $(BUNDLE_DIR))
+	./create_info_plist.sh $(dir $(BUNDLE_DIR))
+
 
 # Framework compilation
 GenericImageEffect.o: GenericImageEffect.cpp GenericImageEffect.h
