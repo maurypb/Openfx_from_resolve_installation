@@ -34,7 +34,7 @@ void BlurPluginParameters::defineParameters(OFX::ImageEffectDescriptor& p_Desc, 
         "Number of samples for the blur",
         8,   // default
         1,   // min
-        32,  // max
+        128,  // max
         1,   // display min
         16   // display max
     );

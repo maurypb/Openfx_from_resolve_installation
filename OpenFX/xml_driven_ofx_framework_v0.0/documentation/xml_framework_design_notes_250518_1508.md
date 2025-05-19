@@ -100,6 +100,13 @@ Multiple layers between user input and GPU processing:
 - **Developer experience**: Hide low-level texture setup complexity behind framework, provide simple unified sampling interface
 - **Design principle**: Prioritize intuitive defaults (normalized 0-1 range) while allowing expert control when needed
 
+
+
+
+
+
+
+
 ## Questions for Future Implementation
 - How to handle parameter animation (getValueAtTime)?
 - How to support different pixel formats in kernels?

@@ -40,6 +40,17 @@
   - Buffer management
   - Memory cleanup
 
+## Race Condition Pitfalls in Legacy Code
+**Real-world example**: Mask flickering bug in BlurPlugin required `cudaDeviceSynchronize()` fix
+- Memory allocation timing bugs are hard to predict and reproduce
+- Often work during testing but fail in production with different GPU loads
+- Require expensive device-wide synchronization that eliminates stream parallelism
+- Framework eliminates these by using proper RAII memory management patterns
+- **Developer impact**: Effect authors shouldn't need CUDA expertise to avoid race conditions
+
+
+
+
 ## Object Lifecycle Understanding
 - **Factory Pattern**: One factory creates multiple plugin instances
 - **Processing Pattern**: Plugin creates processor per frame
@@ -115,6 +126,32 @@ Multiple layers between user input and GPU processing:
 __global__ void process(cudaTextureObject_t input, float* output, float radius) {
     // Only pixel processing logic here
 }
+
+
+## CUDA Boilerplate Elimination
+This isnt a pressing issue, but here it is for completeness:
+**Current Problem**: Every CUDA image processing kernel starts with identical coordinate calculation boilerplate - extracting pixel coordinates from blockIdx/threadIdx, converting to normalized UV coordinates, bounds checking, and index calculation. This repetitive code obscures the actual image processing logic and must be rewritten for every effect.
+
+**Framework Solution**: Generate wrapper kernels automatically that handle coordinate calculation and call user-defined processing functions with pre-calculated values. This allows effect authors to write pure image processing logic with optional helper functions, similar to GLSL fragment shaders where coordinate handling is automatic.
+
+**Example Transformation**:
+```cpp
+// Current: Every kernel starts with 8+ lines of coordinate boilerplate
+__global__ void MyKernel(int width, int height, ...) {
+    const int x = blockIdx.x * blockDim.x + threadIdx.x;
+    const int y = blockIdx.y * blockDim.y + threadIdx.y;
+    // ... 6 more lines of setup
+    
+    // Finally: actual image processing logic
+}
+
+// Framework: Pure processing logic only
+__device__ void process(int x, int y, float2 uv, int index, ...) {
+    // Only image processing logic here
+}
+
+
+
 ```
 
 ## Questions for Future Implementation

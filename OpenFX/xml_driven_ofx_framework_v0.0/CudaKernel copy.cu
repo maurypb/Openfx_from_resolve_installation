@@ -23,7 +23,7 @@ float* p_Output is the output buffer (in GLSL you'd write to gl_FragColor or a f
 */
 
 __global__ void GaussianBlurKernel(int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
-                                  cudaTextureObject_t tex_Input, cudaTextureObject_t tex_Mask, float* p_Output, bool p_MaskPresent)
+                                  cudaTextureObject_t tex_Input, cudaTextureObject_t tex_Mask, float* p_Output)
 {
    const int x = blockIdx.x * blockDim.x + threadIdx.x;
    const int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -37,46 +37,29 @@ __global__ void GaussianBlurKernel(int p_Width, int p_Height, float p_Radius, in
        const int index = ((y * p_Width) + x) * 4;
        
        // Read mask value if available
-       float maskValue = 1.0f;  // Default to full blur 
+       float maskValue = 0.0f;  // Default to NO blur 
        
        // Sample directly from source image
        float4 srcColor = tex2D<float4>(tex_Input, u, v);
        
-
-        // if (p_MaskPresent)
-        // {
-        //     // Only apply blur if mask strength is positive
-        //     if (p_MaskStrength > 0.0f) {
-        //         // Sample the mask texture with explicit bounds checking
-        //         if (tex_Mask != 0) {
-        //             float4 maskColor = tex2D<float4>(tex_Mask, u, v);
-        //             // Use alpha channel for mask
-        //             maskValue = maskColor.w;
-                    
-        //             // Safety check for invalid values
-        //             if (isnan(maskValue) || isinf(maskValue)) {
-        //                 maskValue = 0.0f;  // Default to no blur if mask is corrupted
-        //             }
-                    
-        //             // Apply mask strength
-        //             maskValue = p_MaskStrength * maskValue;
-        //         }
-        //     }
-        // }
-
-
-        if (p_MaskPresent) {
-            if (p_MaskStrength >= 0.0f) {
-                // Sample mask and apply (includes 0.0f case)
-                float4 maskColor = tex2D<float4>(tex_Mask, u, v);
-                maskValue = p_MaskStrength * maskColor.w;
-            } else {
-                // Negative mask strength = no blur at all
-                maskValue = 0.0f;
-            }
-        }
-
-
+       // Only apply blur if mask strength is positive
+       if (p_MaskStrength > 0.0f) {
+           // Sample the mask texture with explicit bounds checking
+           if (tex_Mask != 0) {
+               float4 maskColor = tex2D<float4>(tex_Mask, u, v);
+               // Use alpha channel for mask
+               maskValue = maskColor.w;
+               
+               // Safety check for invalid values
+               if (isnan(maskValue) || isinf(maskValue)) {
+                   maskValue = 0.0f;  // Default to no blur if mask is corrupted
+               }
+               
+               // Apply mask strength
+               maskValue = p_MaskStrength * maskValue;
+           }
+       }
+   
        // Calculate effective blur radius based on mask
        float effectiveRadius = p_Radius * maskValue;
        
@@ -112,7 +95,6 @@ __global__ void GaussianBlurKernel(int p_Width, int p_Height, float p_Radius, in
                float4 color = tex2D<float4>(tex_Input, sample_u, sample_v);
                
                // Calculate Gaussian weight
-               //float weight = exp(-(distance * distance) / (2.0f * effectiveRadius * effectiveRadius));
                float weight = 1.0f;
                // Accumulate weighted color
                sum.x += color.x * weight;
@@ -123,13 +105,13 @@ __global__ void GaussianBlurKernel(int p_Width, int p_Height, float p_Radius, in
            }
        }
        
-    //    // Add center pixel with highest weight
-    //    float centerWeight = 2.0f;  // Give center pixel more weight
-    //    sum.x += srcColor.x * centerWeight;
-    //    sum.y += srcColor.y * centerWeight;
-    //    sum.z += srcColor.z * centerWeight;
-    //    sum.w += srcColor.w * centerWeight;
-    //    weightSum += centerWeight;
+       // Add center pixel with highest weight
+       float centerWeight = 2.0f;  // Give center pixel more weight
+       sum.x += srcColor.x * centerWeight;
+       sum.y += srcColor.y * centerWeight;
+       sum.z += srcColor.z * centerWeight;
+       sum.w += srcColor.w * centerWeight;
+       weightSum += centerWeight;
        
        // Normalize by total weight
        if (weightSum > 0.0f) {
@@ -239,32 +221,30 @@ void RunCudaKernel(void* p_Stream, int p_Width, int p_Height, float p_Radius, in
         
         // Force synchronization after creating texture
         //cudaDeviceSynchronize();
-    } 
-    // else 
-    // {
-    //     // Create a dummy mask with all zeros
-    //     cudaMallocArray(&maskArray, &channelDesc, p_Width, p_Height);
-    //     cudaDeviceSynchronize();
+    } else 
+    {
+        // Create a dummy mask with all zeros
+        cudaMallocArray(&maskArray, &channelDesc, p_Width, p_Height);
+        cudaDeviceSynchronize();
 
-    //     float* dummyMask = new float[p_Width * p_Height * 4]();  // Zero-initialized
-    //     cudaMemcpy2DToArray(maskArray, 0, 0, dummyMask, p_Width * sizeof(float4), 
-    //                       p_Width * sizeof(float4), p_Height, cudaMemcpyHostToDevice);
-    //     delete[] dummyMask;
+        float* dummyMask = new float[p_Width * p_Height * 4]();  // Zero-initialized
+        cudaMemcpy2DToArray(maskArray, 0, 0, dummyMask, p_Width * sizeof(float4), 
+                          p_Width * sizeof(float4), p_Height, cudaMemcpyHostToDevice);
+        delete[] dummyMask;
         
-    //     cudaResourceDesc maskResDesc;
-    //     memset(&maskResDesc, 0, sizeof(cudaResourceDesc));
-    //     maskResDesc.resType = cudaResourceTypeArray;
-    //     maskResDesc.res.array.array = maskArray;
+        cudaResourceDesc maskResDesc;
+        memset(&maskResDesc, 0, sizeof(cudaResourceDesc));
+        maskResDesc.resType = cudaResourceTypeArray;
+        maskResDesc.res.array.array = maskArray;
         
-    //     cudaCreateTextureObject(&maskTex, &maskResDesc, &texDesc, NULL);
-    // }
+        cudaCreateTextureObject(&maskTex, &maskResDesc, &texDesc, NULL);
+    }
     
     // Launch kernel
     dim3 threads(16, 16, 1);
     dim3 blocks(((p_Width + threads.x - 1) / threads.x), ((p_Height + threads.y - 1) / threads.y), 1);
     
-    GaussianBlurKernel<<<blocks, threads, 0, stream>>>(p_Width, p_Height, p_Radius, p_Quality, p_MaskStrength, 
-        inputTex, maskTex, p_Output, p_Mask != nullptr);
+    GaussianBlurKernel<<<blocks, threads, 0, stream>>>(p_Width, p_Height, p_Radius, p_Quality, p_MaskStrength, inputTex, maskTex, p_Output);
     
     // Wait for kernel to finish
     //cudaDeviceSynchronize();
