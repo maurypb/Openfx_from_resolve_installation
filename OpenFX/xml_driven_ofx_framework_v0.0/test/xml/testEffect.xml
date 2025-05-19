@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect name="TestBlur" category="Filter" 
+       version="1.0" 
+       description="A test blur effect"
+       author="Test Author"
+       copyright="Copyright 2025"
+       supports_timeline="true"
+       supports_matte="true">
+  
+  <inputs>
+    <source name="source" label="Source Image" border_mode="clamp" />
+    <source name="matte" label="Mask" optional="true" border_mode="black" />
+  </inputs>
+  
+  <parameters>
+    <parameter name="radius" type="double" default="5.0" min="0.0" max="100.0" 
+               displayMin="0.0" displayMax="50.0" inc="0.1"
+               res_dependent="width"
+               label="Radius" hint="Blur radius in pixels" />
+               
+    <parameter name="quality" type="int" default="8" min="1" max="32" 
+               displayMin="1" displayMax="16" inc="1" 
+               label="Quality" hint="Number of samples for the blur" />
+
+    <parameter name="edge_mode" type="choice" default="0"
+               label="Edge Mode" hint="How to handle edges">
+      <option value="0" label="Clamp" />
+      <option value="1" label="Repeat" />
+      <option value="2" label="Mirror" />
+    </parameter>
+    
+    <parameter name="main_color" type="color" label="Main Color" 
+               hint="The primary color of the effect">
+      <component name="r" default="0.3" min="0.0" max="1.0" inc="0.01" />
+      <component name="g" default="0.5" min="0.0" max="1.0" inc="0.01" />
+      <component name="b" default="0.7" min="0.0" max="1.0" inc="0.01" />
+    </parameter>
+  </parameters>
+  
+  <ui>
+    <page name="Main">
+      <column name="Basic">
+        <parameter>radius</parameter>
+        <parameter>quality</parameter>
+      </column>
+      <column name="Advanced">
+        <parameter>edge_mode</parameter>
+        <parameter>main_color</parameter>
+      </column>
+    </page>
+  </ui>
+  
+  <identity_conditions>
+    <condition>
+      <parameter name="radius" operator="lessEqual" value="0.0" />
+    </condition>
+  </identity_conditions>
+  
+  <kernels>
+    <cuda file="TestBlur.cu" executions="1" />
+    <opencl file="TestBlur.cl" executions="1" />
+    <metal file="TestBlur.metal" executions="1" />
+  </kernels>
+</effect>

@@ -376,22 +376,6 @@ void BlurPlugin::setupAndProcess(ImageBlurrer &p_ImageBlurrer, const OFX::Render
         mask.reset(m_MaskClip->fetchImage(p_Args.time));
         //logMessage("  Mask image fetched: %p", mask.get());
         
-        if (mask.get()) {
-            // logMessage("  Mask dimensions: %d x %d",
-            //          mask->getBounds().x2 - mask->getBounds().x1,
-            //          mask->getBounds().y2 - mask->getBounds().y1);
-            
-            float* maskData = static_cast<float*>(mask->getPixelData());
-            //logMessage("  Mask data pointer: %p", maskData);
-            
-            // Debug fix: If we detect a potential issue with the mask data, create a fallback
-            // if (!maskData) {
-            //     logMessage("  WARNING: Mask data pointer is NULL, this is likely causing the flickering");
-            // }
-            
-            // Instead of examining the mask data (which seems to cause crashes),
-            // let's modify our approach to detect the issue
-        }
     }
     else
     {
@@ -412,7 +396,8 @@ void BlurPlugin::setupAndProcess(ImageBlurrer &p_ImageBlurrer, const OFX::Render
     p_ImageBlurrer.setMaskImg(mask.get());
 
     // Setup OpenCL and CUDA Render arguments
-    p_ImageBlurrer.setGPURenderArgs(p_Args);
+    p_ImageBlurrer.setGPURenderArgs(p_Args);  // right here is where the information needed for cuda is passed to ImageBlurrer object.
+    //this includes the cudaStream.  This object is maintained as it is passed along, so when "processImagesCUDA() is called, that information is already present"
 
     // Set the render window
     p_ImageBlurrer.setRenderWindow(p_Args.renderWindow);
@@ -423,7 +408,16 @@ void BlurPlugin::setupAndProcess(ImageBlurrer &p_ImageBlurrer, const OFX::Render
     //logMessage("  About to process image");
 
     // Call the base class process member, this will call the derived templated process code
-    p_ImageBlurrer.process();
+    p_ImageBlurrer.process();  //our ImageBlurrer object doesn't have a process function - it's in the parent class.
+    // this function (of the parent class) decides which these functions to call (all of which we have defined (overridden - because "virtual") in this ImageBlurrer class): 
+
+    // virtual void processImagesCUDA();
+    // virtual void processImagesOpenCL();
+    // virtual void processImagesMetal();
+    // virtual void multiThreadProcessImages(OfxRectI p_ProcWindow);
+
+
+
 
     //logMessage("  Image processing completed");
 }

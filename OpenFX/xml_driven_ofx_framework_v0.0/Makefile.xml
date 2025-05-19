@@ -1,0 +1,95 @@
+CXX = g++
+# Use the same flags as your working Makefile
+CXXFLAGS = -fvisibility=hidden -I../OpenFX-1.4/include -I../Support/include
+
+# Add our additional includes
+INCLUDES = -I./include -I./src -I./include/pugixml
+
+# Use the same approach as your original Makefile for OFX Support
+OFX_SUPPORT_OBJS = ofxsCore.o ofxsImageEffect.o ofxsInteract.o ofxsLog.o ofxsMultiThread.o ofxsParams.o ofxsProperty.o ofxsPropertyValidation.o
+
+# XML classes and tests - SEPARATED BY DEPENDENCIES
+XML_CORE_NO_OFX = src/core/XMLEffectDefinition.cpp include/pugixml/pugixml.cpp
+XML_CORE_WITH_OFX = src/core/XMLParameterManager.cpp src/core/XMLInputManager.cpp
+
+XML_TEST_SOURCES_DEF = src/tools/XMLEffectDefinitionTest.cpp
+XML_TEST_SOURCES_PARAM = src/tools/XMLParameterManagerTest.cpp
+XML_TEST_SOURCES_INPUT = src/tools/XMLInputManagerTest.cpp
+
+# Build directories
+BUILD_DIR = build
+OBJ_DIR = $(BUILD_DIR)/obj
+
+# Object files - SEPARATED BY DEPENDENCIES
+XML_CORE_NO_OFX_OBJECTS = $(XML_CORE_NO_OFX:%.cpp=$(OBJ_DIR)/%.o)
+XML_CORE_WITH_OFX_OBJECTS = $(XML_CORE_WITH_OFX:%.cpp=$(OBJ_DIR)/%.o)
+XML_TEST_OBJECTS_DEF = $(XML_TEST_SOURCES_DEF:%.cpp=$(OBJ_DIR)/%.o)
+XML_TEST_OBJECTS_PARAM = $(XML_TEST_SOURCES_PARAM:%.cpp=$(OBJ_DIR)/%.o)
+XML_TEST_OBJECTS_INPUT = $(XML_TEST_SOURCES_INPUT:%.cpp=$(OBJ_DIR)/%.o)
+
+# Plugin stub for tests that need OFX
+PLUGIN_STUB_OBJ = $(OBJ_DIR)/plugin_stub.o
+
+# Executables
+XML_TEST_DEF_EXECUTABLE = $(BUILD_DIR)/test_xml_def
+XML_TEST_PARAM_EXECUTABLE = $(BUILD_DIR)/test_xml_param
+XML_TEST_INPUT_EXECUTABLE = $(BUILD_DIR)/test_xml_input
+
+# Default target
+all: prepare $(XML_TEST_DEF_EXECUTABLE) $(XML_TEST_PARAM_EXECUTABLE) $(XML_TEST_INPUT_EXECUTABLE)
+
+# Prepare build directories
+prepare:
+	@mkdir -p $(OBJ_DIR)/src/core
+	@mkdir -p $(OBJ_DIR)/src/tools
+	@mkdir -p $(OBJ_DIR)/include/pugixml
+
+# Build XMLEffectDefinition test executable (NO OFX DEPENDENCIES)
+$(XML_TEST_DEF_EXECUTABLE): $(XML_CORE_NO_OFX_OBJECTS) $(XML_TEST_OBJECTS_DEF)
+	$(CXX) $^ -o $@
+
+# Build XMLParameterManager test executable (needs OFX support + plugin stub)
+$(XML_TEST_PARAM_EXECUTABLE): $(XML_CORE_NO_OFX_OBJECTS) $(XML_CORE_WITH_OFX_OBJECTS) $(XML_TEST_OBJECTS_PARAM) $(OFX_SUPPORT_OBJS) $(PLUGIN_STUB_OBJ)
+	$(CXX) $^ -o $@
+
+# Build XMLInputManager test executable (needs OFX support + plugin stub)
+$(XML_TEST_INPUT_EXECUTABLE): $(XML_CORE_NO_OFX_OBJECTS) $(XML_CORE_WITH_OFX_OBJECTS) $(XML_TEST_OBJECTS_INPUT) $(OFX_SUPPORT_OBJS) $(PLUGIN_STUB_OBJ)
+	$(CXX) $^ -o $@
+
+# Create plugin stub to satisfy OFX Support library
+$(PLUGIN_STUB_OBJ):
+	@mkdir -p $(dir $@)
+	@echo 'Creating plugin stub...'
+	@echo '#include "ofxsImageEffect.h"' > $(OBJ_DIR)/plugin_stub.cpp
+	@echo 'void OFX::Plugin::getPluginIDs(OFX::PluginFactoryArray& p_FactoryArray) {' >> $(OBJ_DIR)/plugin_stub.cpp
+	@echo '    // Empty stub for testing' >> $(OBJ_DIR)/plugin_stub.cpp
+	@echo '}' >> $(OBJ_DIR)/plugin_stub.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $(OBJ_DIR)/plugin_stub.cpp -o $@
+
+# Compile rule for source files
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# OpenFX support library compilation (same as your original Makefile)
+%.o: ../Support/Library/%.cpp
+	$(CXX) -c $< $(CXXFLAGS)
+
+# Run the tests
+test_def: $(XML_TEST_DEF_EXECUTABLE)
+	$(XML_TEST_DEF_EXECUTABLE) test/xml/testEffect.xml
+
+test_param: $(XML_TEST_PARAM_EXECUTABLE)
+	$(XML_TEST_PARAM_EXECUTABLE) test/xml/testEffect.xml
+
+test_input: $(XML_TEST_INPUT_EXECUTABLE)
+	$(XML_TEST_INPUT_EXECUTABLE) test/xml/testEffect.xml
+
+test: test_def test_param test_input
+
+# Clean build files
+clean:
+	rm -rf $(BUILD_DIR)
+	rm -f *.o
+
+.PHONY: all prepare test test_def test_param test_input clean
