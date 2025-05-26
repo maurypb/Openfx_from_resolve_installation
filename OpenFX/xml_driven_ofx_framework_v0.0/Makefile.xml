@@ -15,6 +15,7 @@ XML_CORE_WITH_OFX = src/core/XMLParameterManager.cpp src/core/XMLInputManager.cp
 XML_TEST_SOURCES_DEF = src/tools/XMLEffectDefinitionTest.cpp
 XML_TEST_SOURCES_PARAM = src/tools/XMLParameterManagerTest.cpp
 XML_TEST_SOURCES_INPUT = src/tools/XMLInputManagerTest.cpp
+XML_TEST_SOURCES_PARAMVALUE = src/tools/ParameterValueTest.cpp src/core/ParameterValue.cpp
 
 # Build directories
 BUILD_DIR = build
@@ -26,6 +27,7 @@ XML_CORE_WITH_OFX_OBJECTS = $(XML_CORE_WITH_OFX:%.cpp=$(OBJ_DIR)/%.o)
 XML_TEST_OBJECTS_DEF = $(XML_TEST_SOURCES_DEF:%.cpp=$(OBJ_DIR)/%.o)
 XML_TEST_OBJECTS_PARAM = $(XML_TEST_SOURCES_PARAM:%.cpp=$(OBJ_DIR)/%.o)
 XML_TEST_OBJECTS_INPUT = $(XML_TEST_SOURCES_INPUT:%.cpp=$(OBJ_DIR)/%.o)
+XML_TEST_OBJECTS_PARAMVALUE = $(XML_TEST_SOURCES_PARAMVALUE:%.cpp=$(OBJ_DIR)/%.o)
 
 # Plugin stub for tests that need OFX
 PLUGIN_STUB_OBJ = $(OBJ_DIR)/plugin_stub.o
@@ -34,9 +36,10 @@ PLUGIN_STUB_OBJ = $(OBJ_DIR)/plugin_stub.o
 XML_TEST_DEF_EXECUTABLE = $(BUILD_DIR)/test_xml_def
 XML_TEST_PARAM_EXECUTABLE = $(BUILD_DIR)/test_xml_param
 XML_TEST_INPUT_EXECUTABLE = $(BUILD_DIR)/test_xml_input
+XML_TEST_PARAMVALUE_EXECUTABLE = $(BUILD_DIR)/test_paramvalue
 
 # Default target
-all: prepare $(XML_TEST_DEF_EXECUTABLE) $(XML_TEST_PARAM_EXECUTABLE) $(XML_TEST_INPUT_EXECUTABLE)
+all: prepare $(XML_TEST_DEF_EXECUTABLE) $(XML_TEST_PARAM_EXECUTABLE) $(XML_TEST_INPUT_EXECUTABLE) $(XML_TEST_PARAMVALUE_EXECUTABLE)
 
 # Prepare build directories
 prepare:
@@ -54,6 +57,10 @@ $(XML_TEST_PARAM_EXECUTABLE): $(XML_CORE_NO_OFX_OBJECTS) $(XML_CORE_WITH_OFX_OBJ
 
 # Build XMLInputManager test executable (needs OFX support + plugin stub)
 $(XML_TEST_INPUT_EXECUTABLE): $(XML_CORE_NO_OFX_OBJECTS) $(XML_CORE_WITH_OFX_OBJECTS) $(XML_TEST_OBJECTS_INPUT) $(OFX_SUPPORT_OBJS) $(PLUGIN_STUB_OBJ)
+	$(CXX) $^ -o $@
+
+# Build ParameterValue test executable (NO OFX DEPENDENCIES)
+$(XML_TEST_PARAMVALUE_EXECUTABLE): $(XML_TEST_OBJECTS_PARAMVALUE)
 	$(CXX) $^ -o $@
 
 # Create plugin stub to satisfy OFX Support library
@@ -85,11 +92,14 @@ test_param: $(XML_TEST_PARAM_EXECUTABLE)
 test_input: $(XML_TEST_INPUT_EXECUTABLE)
 	$(XML_TEST_INPUT_EXECUTABLE) test/xml/testEffect.xml
 
-test: test_def test_param test_input
+test_paramvalue: $(XML_TEST_PARAMVALUE_EXECUTABLE)
+	$(XML_TEST_PARAMVALUE_EXECUTABLE)
+
+test: test_def test_param test_input test_paramvalue
 
 # Clean build files
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f *.o
 
-.PHONY: all prepare test test_def test_param test_input clean
+.PHONY: all prepare test test_def test_param test_input test_paramvalue clean

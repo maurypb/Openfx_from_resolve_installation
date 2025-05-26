@@ -34,7 +34,7 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o
+PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o
 
 # Main plugin objects
 PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
@@ -42,7 +42,51 @@ PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
 # OpenFX Support objects
 OFX_SUPPORT_OBJS = ofxsCore.o ofxsImageEffect.o ofxsInteract.o ofxsLog.o ofxsMultiThread.o ofxsParams.o ofxsProperty.o ofxsPropertyValidation.o
 
-# Main target
+# COMPILATION RULES - MUST COME BEFORE MAIN TARGET
+
+# New modular components compilation
+Logger.o: Logger.cpp Logger.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+PluginClips.o: PluginClips.cpp PluginClips.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+PluginParameters.o: PluginParameters.cpp PluginParameters.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+BlurPluginParameters.o: BlurPluginParameters.cpp BlurPluginParameters.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+GenericEffectFactory.o: src/core/GenericEffectFactory.cpp src/core/GenericEffectFactory.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+
+XMLEffectDefinition.o: src/core/XMLEffectDefinition.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./include/pugixml
+
+pugixml.o: include/pugixml/pugixml.cpp
+	$(CXX) -c $< $(CXXFLAGS)
+
+# Main plugin compilation
+BlurPlugin.o: BlurPlugin.cpp BlurPlugin.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+# CUDA kernel compilation
+CudaKernel.o: CudaKernel.cu
+	${NVCC} -c $< $(NVCCFLAGS)
+
+# Metal kernel compilation (macOS only)
+MetalKernel.o: MetalKernel.mm
+	$(CXX) -c $< $(CXXFLAGS)
+
+# OpenCL kernel compilation
+OpenCLKernel.o: OpenCLKernel.cpp
+	$(CXX) -c $< $(CXXFLAGS)
+
+# OpenFX support library compilation
+%.o: ../Support/Library/%.cpp
+	$(CXX) -c $< $(CXXFLAGS)
+
+# MAIN TARGET - COMES AFTER ALL COMPILATION RULES
 BlurPlugin.ofx: $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o $(OFX_SUPPORT_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	mkdir -p $(BUNDLE_DIR)
@@ -68,39 +112,6 @@ BlurPlugin.ofx: $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o $(OFX_SUP
 	echo '    <string>1.5</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '</dict>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '</plist>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
-
-# New modular components compilation
-Logger.o: Logger.cpp Logger.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-PluginClips.o: PluginClips.cpp PluginClips.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-PluginParameters.o: PluginParameters.cpp PluginParameters.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-BlurPluginParameters.o: BlurPluginParameters.cpp BlurPluginParameters.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-# Main plugin compilation
-BlurPlugin.o: BlurPlugin.cpp BlurPlugin.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-# CUDA kernel compilation
-CudaKernel.o: CudaKernel.cu
-	${NVCC} -c $< $(NVCCFLAGS)
-
-# Metal kernel compilation (macOS only)
-MetalKernel.o: MetalKernel.mm
-	$(CXX) -c $< $(CXXFLAGS)
-
-# OpenCL kernel compilation
-OpenCLKernel.o: OpenCLKernel.cpp
-	$(CXX) -c $< $(CXXFLAGS)
-
-# OpenFX support library compilation
-%.o: ../Support/Library/%.cpp
-	$(CXX) -c $< $(CXXFLAGS)
 
 # Clean up build artifacts
 clean:

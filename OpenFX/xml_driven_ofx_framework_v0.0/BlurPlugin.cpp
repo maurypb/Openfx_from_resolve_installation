@@ -14,7 +14,10 @@
 #include "PluginClips.h"
 #include "PluginParameters.h"
 #include "BlurPluginParameters.h"
-
+#include <fstream>
+// Add this include at the top of BlurPlugin.cpp
+#include "src/core/GenericEffectFactory.h"
+#include "include/pugixml/pugixml.hpp"
 
 
 #define kPluginName "GaussianBlur"
@@ -27,6 +30,58 @@
 #define kSupportsTiles false
 #define kSupportsMultiResolution false
 #define kSupportsMultipleClipPARs false
+
+void testGenericEffectFactory() {
+    Logger::getInstance().logMessage("=== Testing GenericEffectFactory ===");
+    
+    try {
+        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestEffect.xml";
+        
+        Logger::getInstance().logMessage("Creating GenericEffectFactory...");
+        GenericEffectFactory factory(xmlPath);
+        Logger::getInstance().logMessage("✓ GenericEffectFactory created successfully");
+        
+        // Test XML loading
+        const XMLEffectDefinition& xmlDef = factory.getXMLDefinition();
+        Logger::getInstance().logMessage("✓ XML definition retrieved");
+        Logger::getInstance().logMessage("  Effect name: %s", xmlDef.getName().c_str());
+        Logger::getInstance().logMessage("  Effect category: %s", xmlDef.getCategory().c_str());
+        Logger::getInstance().logMessage("  Plugin identifier: %s", factory.getPluginIdentifier().c_str());
+        
+        // Test parameter parsing
+        auto params = xmlDef.getParameters();
+        Logger::getInstance().logMessage("  Parameter count: %d", (int)params.size());
+        for (const auto& param : params) {
+            Logger::getInstance().logMessage("    - %s (%s): default=%.2f", 
+                                           param.name.c_str(), param.type.c_str(), param.defaultValue);
+        }
+        
+        // Test input parsing
+        auto inputs = xmlDef.getInputs();
+        Logger::getInstance().logMessage("  Input count: %d", (int)inputs.size());
+        for (const auto& input : inputs) {
+            Logger::getInstance().logMessage("    - %s (optional: %s, border: %s)", 
+                                           input.name.c_str(), 
+                                           input.optional ? "true" : "false",
+                                           input.borderMode.c_str());
+        }
+        
+        // Test kernel parsing
+        auto kernels = xmlDef.getKernels();
+        Logger::getInstance().logMessage("  Kernel count: %d", (int)kernels.size());
+        for (const auto& kernel : kernels) {
+            Logger::getInstance().logMessage("    - %s: %s", kernel.platform.c_str(), kernel.file.c_str());
+        }
+        
+        Logger::getInstance().logMessage("✓ GenericEffectFactory test completed successfully");
+        
+    } catch (const std::exception& e) {
+        Logger::getInstance().logMessage("✗ GenericEffectFactory test failed: %s", e.what());
+    }
+    
+    Logger::getInstance().logMessage("=== GenericEffectFactory Test Complete ===");
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -411,6 +466,16 @@ void BlurPlugin::setupAndProcess(ImageBlurrer &p_ImageBlurrer, const OFX::Render
     p_ImageBlurrer.process();  //our ImageBlurrer object doesn't have a process function - it's in the parent class.
     // this function (of the parent class) decides which these functions to call (all of which we have defined (overridden - because "virtual") in this ImageBlurrer class): 
 
+
+// note that we passed raw pointers (dst.get()) to ImageBlurrer, which will actually process the images.
+// as we created the Image objects dst,src and mask with unique_pointers, they will get "cleaned up" (eg deleted)
+//here, as those pointers will go out of scope... but they will only get deleted AFTER ImageBlurrer.process()
+//returns!  Or, after the image is processed, generated, and moved back to the cpu memory.
+
+
+
+
+
     // virtual void processImagesCUDA();
     // virtual void processImagesOpenCL();
     // virtual void processImagesMetal();
@@ -430,6 +495,8 @@ using namespace OFX;
 BlurPluginFactory::BlurPluginFactory()
     : OFX::PluginFactoryHelper<BlurPluginFactory>(kPluginIdentifier, kPluginVersionMajor, kPluginVersionMinor)
 {
+    // Add this line to test the factory
+    testGenericEffectFactory();
 }
 
 void BlurPluginFactory::describe(OFX::ImageEffectDescriptor& p_Desc)
