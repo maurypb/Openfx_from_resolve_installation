@@ -1,7 +1,7 @@
 #ifndef XML_PARAMETER_MANAGER_H
 #define XML_PARAMETER_MANAGER_H
 
-#include "core/XMLEffectDefinition.h"
+#include "XMLEffectDefinition.h"
 #include "ofxsImageEffect.h"
 #include <string>
 #include <map>

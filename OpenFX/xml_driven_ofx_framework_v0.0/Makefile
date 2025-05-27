@@ -34,7 +34,7 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o
+PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o
 
 # Main plugin objects
 PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
@@ -91,6 +91,12 @@ XMLEffectDefinition.o: src/core/XMLEffectDefinition.cpp src/core/XMLEffectDefini
 
 pugixml.o: include/pugixml/pugixml.cpp
 	$(CXX) -c $< $(CXXFLAGS)
+
+GenericEffect.o: src/core/GenericEffect.cpp src/core/GenericEffect.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+
+GenericProcessor.o: src/core/GenericProcessor.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
 
 # Main plugin compilation
 BlurPlugin.o: BlurPlugin.cpp BlurPlugin.h

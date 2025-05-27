@@ -15,9 +15,14 @@
 #include "PluginParameters.h"
 #include "BlurPluginParameters.h"
 #include <fstream>
-// Add this include at the top of BlurPlugin.cpp
 #include "src/core/GenericEffectFactory.h"
+
+#include "src/core/GenericEffect.h"
+
 #include "include/pugixml/pugixml.hpp"
+#include "src/core/XMLEffectDefinition.h"
+#include "src/core/XMLInputManager.h"
+#include "src/core/XMLParameterManager.h"
 
 
 #define kPluginName "GaussianBlur"
@@ -35,7 +40,7 @@ void testGenericEffectFactory() {
     Logger::getInstance().logMessage("=== Testing GenericEffectFactory ===");
     
     try {
-        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestEffect.xml";
+        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml";
         
         Logger::getInstance().logMessage("Creating GenericEffectFactory...");
         GenericEffectFactory factory(xmlPath);
@@ -543,62 +548,7 @@ void BlurPluginFactory::describe(OFX::ImageEffectDescriptor& p_Desc)
 
 }
 
-// original blurPluginFactory
 
-// void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
-// {
-//     // Source clip only in the filter context
-//     // Create the mandated source clip
-//     ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
-//     srcClip->addSupportedComponent(ePixelComponentRGBA);
-//     srcClip->setTemporalClipAccess(false);
-//     srcClip->setSupportsTiles(kSupportsTiles);
-//     srcClip->setIsMask(false);
-
-//     // Create the optional mask clip
-//     ClipDescriptor* maskClip = p_Desc.defineClip("Mask");
-//     maskClip->addSupportedComponent(ePixelComponentRGBA);
-//     maskClip->addSupportedComponent(ePixelComponentAlpha);
-//     maskClip->setTemporalClipAccess(false);
-//     maskClip->setSupportsTiles(kSupportsTiles);
-//     maskClip->setOptional(true);
-//     maskClip->setIsMask(true);
-
-//     // Create the mandated output clip
-//     ClipDescriptor* dstClip = p_Desc.defineClip(kOfxImageEffectOutputClipName);
-//     dstClip->addSupportedComponent(ePixelComponentRGBA);
-//     dstClip->setSupportsTiles(kSupportsTiles);
-
-//     // Make some pages and to things in
-//     PageParamDescriptor* page = p_Desc.definePageParam("Controls");
-
-//     // Blur radius parameter
-//     DoubleParamDescriptor* radiusParam = p_Desc.defineDoubleParam("radius");
-//     radiusParam->setLabels("Radius", "Radius", "Radius");
-//     radiusParam->setHint("Blur radius in pixels");
-//     radiusParam->setRange(0.0, 100.0);
-//     radiusParam->setDisplayRange(0.0, 50.0);
-//     radiusParam->setDefault(5.0);
-//     page->addChild(*radiusParam);
-
-//     // Quality parameter
-//     IntParamDescriptor* qualityParam = p_Desc.defineIntParam("quality");
-//     qualityParam->setLabels("Quality", "Quality", "Quality");
-//     qualityParam->setHint("Number of samples for the blur");
-//     qualityParam->setRange(1, 32);
-//     qualityParam->setDisplayRange(1, 16);
-//     qualityParam->setDefault(8);
-//     page->addChild(*qualityParam);
-
-//     // Mask strength parameter
-//     DoubleParamDescriptor* maskStrengthParam = p_Desc.defineDoubleParam("maskStrength");
-//     maskStrengthParam->setLabels("Mask Strength", "Mask Str", "Mask");
-//     maskStrengthParam->setHint("How strongly the mask affects the blur radius");
-//     maskStrengthParam->setRange(0.0, 1.0);
-//     maskStrengthParam->setDisplayRange(0.0, 1.0);
-//     maskStrengthParam->setDefault(1.0);
-//     page->addChild(*maskStrengthParam);
-// }
 
 
 void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OFX::ContextEnum /*p_Context*/)
@@ -629,10 +579,86 @@ void BlurPluginFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, OF
 ImageEffect* BlurPluginFactory::createInstance(OfxImageEffectHandle p_Handle, ContextEnum /*p_Context*/)
 {
     return new BlurPlugin(p_Handle);
+
+    // std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml";
+    // return new GenericEffect(p_Handle, xmlPath);
+
+
 }
+
+
+// Add this BEFORE the getPluginIDs function
+class TestFactory : public OFX::PluginFactoryHelper<TestFactory> {
+    public:
+        TestFactory() : OFX::PluginFactoryHelper<TestFactory>("com.test.minimal", 1, 0) {}
+        
+        virtual void describe(OFX::ImageEffectDescriptor& desc) override {
+            desc.setLabels("TestMinimal", "TestMinimal", "TestMinimal");
+            desc.setPluginGrouping("Test");
+            desc.addSupportedContext(OFX::eContextFilter);
+            desc.addSupportedBitDepth(OFX::eBitDepthFloat);
+        }
+
+
+        virtual void describeInContext(OFX::ImageEffectDescriptor& desc, OFX::ContextEnum /*p_Context*/) override {
+            try {
+                Logger::getInstance().logMessage("Testing parameter with page...");
+                
+                // Create a page first
+                OFX::PageParamDescriptor* page = desc.definePageParam("Controls");
+                page->setLabels("Controls", "Controls", "Controls");
+                
+                // Create parameter
+                OFX::DoubleParamDescriptor* testParam = desc.defineDoubleParam("testParam");
+                testParam->setLabels("Test Param", "Test Param", "Test Param");
+                testParam->setDefault(5.0);
+                testParam->setRange(0.0, 100.0);
+                
+                // Add parameter to page
+                page->addChild(*testParam);
+                
+                Logger::getInstance().logMessage("Parameter with page created successfully");
+
+
+                // Add basic clips - Resolve needs these to show parameters
+                OFX::ClipDescriptor* srcClip = desc.defineClip(kOfxImageEffectSimpleSourceClipName);
+                srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
+                srcClip->setSupportsTiles(false);
+
+                OFX::ClipDescriptor* dstClip = desc.defineClip(kOfxImageEffectOutputClipName);
+                dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
+                dstClip->setSupportsTiles(false);
+
+                Logger::getInstance().logMessage("Basic clips created successfully");
+                
+            } catch (const std::exception& e) {
+                Logger::getInstance().logMessage("ERROR in parameter with page: %s", e.what());
+            }
+        }
+
+        virtual OFX::ImageEffect* createInstance(OfxImageEffectHandle p_Handle, OFX::ContextEnum /*p_Context*/) override {
+            return new BlurPlugin(p_Handle);
+        }
+    }; 
+
+
+
+
 
 void OFX::Plugin::getPluginIDs(PluginFactoryArray& p_FactoryArray)
 {
-    static BlurPluginFactory blurPlugin;
-    p_FactoryArray.push_back(&blurPlugin);
+
+    // static BlurPluginFactory blurPlugin;
+    // p_FactoryArray.push_back(&blurPlugin);
+
+    // static TestFactory testPlugin;
+    // p_FactoryArray.push_back(&testPlugin);
+
+    std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml";
+    static GenericEffectFactory genericPlugin(xmlPath);
+    p_FactoryArray.push_back(&genericPlugin);
+
+
+
+
 }

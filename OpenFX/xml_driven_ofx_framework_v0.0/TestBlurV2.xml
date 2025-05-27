@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<effect name="TestBlurV2" category="Filter">
+    <description>Test blur effect for GenericEffectFactory validation</description>
+    
+    <inputs>
+        <source name="source" label="Input Image" border_mode="clamp" />
+        <source name="mask" label="Mask" optional="true" border_mode="black" />
+    </inputs>
+    
+    <parameters>
+        <parameter name="blurAmount" type="double" default="10.0" min="0.0" max="200.0" 
+                displayMin="0.0" displayMax="100.0" 
+                label="Blur Amount" hint="How much blur to apply" />
+                
+        <parameter name="softness" type="double" default="0.5" min="0.0" max="2.0" 
+                displayMin="0.0" displayMax="1.0" 
+                label="Softness" hint="Edge softness control" />
+    </parameters>
+        
+    <ui>
+        <page name="Main">
+            <column name="Basic">
+                <parameter>blurAmount</parameter>
+                <!-- Remove iterations temporarily -->
+            </column>
+            <column name="Masking">
+                <parameter>softness</parameter>
+            </column>
+        </page>
+    </ui>
+    
+    <kernels>
+        <cuda file="TestBlur.cu" executions="1" />
+        <opencl file="TestBlur.cl" executions="1" />
+        <metal file="TestBlur.metal" executions="1" />
+    </kernels>
+</effect>

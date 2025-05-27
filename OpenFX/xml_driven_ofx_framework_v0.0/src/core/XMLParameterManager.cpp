@@ -105,17 +105,17 @@ OFX::DoubleParamDescriptor* XMLParameterManager::createDoubleParam(
     
     // Basic properties
     param->setLabels(paramDef.label.c_str(), paramDef.label.c_str(), paramDef.label.c_str());
-    param->setHint(paramDef.hint.c_str());
+    // NOTE: Don't call setHint here - let applyResolutionDependency handle it
     
     // Range
     param->setRange(paramDef.minValue, paramDef.maxValue);
     param->setDisplayRange(paramDef.displayMin, paramDef.displayMax);
     param->setDefault(paramDef.defaultValue);
     
-    // Increment (not directly supported in OFX, but stored for UI)
+    // Increment is supported in OFX 1.4
     param->setIncrement(paramDef.inc);
     
-    // Resolution dependency
+    // Resolution dependency - this will set the hint
     applyResolutionDependency(*param, paramDef.resDependent, paramDef.hint);
     
     return param;
@@ -129,14 +129,14 @@ OFX::IntParamDescriptor* XMLParameterManager::createIntParam(
     
     // Basic properties
     param->setLabels(paramDef.label.c_str(), paramDef.label.c_str(), paramDef.label.c_str());
-    param->setHint(paramDef.hint.c_str());
+    // NOTE: Don't call setHint here - let applyResolutionDependency handle it
     
     // Range
     param->setRange(static_cast<int>(paramDef.minValue), static_cast<int>(paramDef.maxValue));
     param->setDisplayRange(static_cast<int>(paramDef.displayMin), static_cast<int>(paramDef.displayMax));
     param->setDefault(static_cast<int>(paramDef.defaultValue));
     
-    // Resolution dependency
+    // Resolution dependency - this will set the hint
     applyResolutionDependency(*param, paramDef.resDependent, paramDef.hint);
     
     return param;
@@ -211,7 +211,7 @@ OFX::Double2DParamDescriptor* XMLParameterManager::createVec2Param(
     
     // Basic properties
     param->setLabels(paramDef.label.c_str(), paramDef.label.c_str(), paramDef.label.c_str());
-    param->setHint(paramDef.hint.c_str());
+    // NOTE: Don't call setHint here - let applyResolutionDependency handle it
     
     // Find component defaults
     double x = 0.0, y = 0.0;
@@ -244,7 +244,7 @@ OFX::Double2DParamDescriptor* XMLParameterManager::createVec2Param(
     // Default
     param->setDefault(x, y);
     
-    // Resolution dependency
+    // Resolution dependency - this will set the hint
     applyResolutionDependency(*param, paramDef.resDependent, paramDef.hint);
     
     return param;
@@ -334,30 +334,20 @@ void XMLParameterManager::applyResolutionDependency(
     const std::string& resDependent,
     const std::string& currentHint
 ) {
-    // Note: OFX API may vary across versions
-    // This is a simplified implementation that might need to be adapted
+    // Build the final hint string without calling setHint multiple times
+    std::string finalHint = currentHint;
     
-    // Some OFX implementations use doubleType, others use different methods
-    // If your OFX version doesn't support setDoubleType, this will need to be modified
-    
-    // Try to set the parameter's hint about how it relates to dimensions
     if (resDependent == "width") {
-        // For width-dependent parameters, hint that it's an X coordinate
-        param.setHint((currentHint + " (width-dependent)").c_str());
+        finalHint += " (width-dependent)";
     }
     else if (resDependent == "height") {
-        // For height-dependent parameters, hint that it's a Y coordinate
-        param.setHint((currentHint + " (height-dependent)").c_str());
+        finalHint += " (height-dependent)";
     }
     else if (resDependent == "xy") {
-        // For both width and height, hint both
-        param.setHint((currentHint + " (dimension-dependent)").c_str());
+        finalHint += " (dimension-dependent)";
     }
-    else {
-        // If not resolution dependent, just set the original hint
-        param.setHint(currentHint.c_str());
-    }
+    // If resDependent is "none" or empty, just use the original hint
     
-    // For your specific OFX version, you may need to use a different approach
-    // such as specific parameter properties or custom properties
+    // Set the hint only once with the final string
+    param.setHint(finalHint.c_str());
 }
