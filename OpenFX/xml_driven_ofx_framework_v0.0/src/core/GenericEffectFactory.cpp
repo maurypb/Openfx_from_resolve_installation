@@ -40,24 +40,34 @@ void GenericEffectFactory::describe(OFX::ImageEffectDescriptor& p_Desc) {
 void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
                                             OFX::ContextEnum /*p_Context*/) {
     try {
-        Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called - XML params + manual clips");
+        Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called - TESTING XML CLIPS");
         
-        // Create clips manually (this works reliably)
-        OFX::ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
-        srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-        srcClip->setSupportsTiles(false);
-
-        OFX::ClipDescriptor* dstClip = p_Desc.defineClip(kOfxImageEffectOutputClipName);
-        dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-        dstClip->setSupportsTiles(false);
+        // TRY XML CLIPS WITH DEBUG LOGGING
+        std::map<std::string, std::string> clipBorderModes;
+        XMLInputManager inputManager;
         
-        OFX::ClipDescriptor* maskClip = p_Desc.defineClip("mask");
-        maskClip->addSupportedComponent(OFX::ePixelComponentRGBA);
-        maskClip->setSupportsTiles(false);
-        maskClip->setOptional(true);
-        maskClip->setIsMask(true);
+        if (!inputManager.createInputs(m_xmlDef, p_Desc, clipBorderModes)) {
+            Logger::getInstance().logMessage("XML clips failed, falling back to manual clips");
+            
+            // FALLBACK: Create clips manually if XML fails
+            OFX::ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
+            srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
+            srcClip->setSupportsTiles(false);
 
-        Logger::getInstance().logMessage("✓ Manual clips created successfully");
+            OFX::ClipDescriptor* dstClip = p_Desc.defineClip(kOfxImageEffectOutputClipName);
+            dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
+            dstClip->setSupportsTiles(false);
+            
+            OFX::ClipDescriptor* maskClip = p_Desc.defineClip("mask");
+            maskClip->addSupportedComponent(OFX::ePixelComponentRGBA);
+            maskClip->setSupportsTiles(false);
+            maskClip->setOptional(true);
+            maskClip->setIsMask(true);
+            
+            Logger::getInstance().logMessage("✓ Fallback manual clips created");
+        } else {
+            Logger::getInstance().logMessage("✓ XML clips created successfully!");
+        }
 
         // CREATE PARAMETERS FROM XML (this works!)
         std::map<std::string, OFX::PageParamDescriptor*> pages;

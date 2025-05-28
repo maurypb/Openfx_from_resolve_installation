@@ -134,23 +134,39 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
     Logger::getInstance().logMessage("Using REAL parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
                                    radius, quality, maskStrength);
     
-    // Get image pointers
+    // Get image pointers DYNAMICALLY from XML inputs
     float* input = nullptr;
     float* mask = nullptr;
     float* output = static_cast<float*>(_dstImg->getPixelData());
     
-    if (m_images.count("source")) {
-        input = static_cast<float*>(m_images.at("source")->getPixelData());
-        Logger::getInstance().logMessage("Found source image");
+    Logger::getInstance().logMessage("Available images in processor:");
+    for (const auto& imagePair : m_images) {
+        Logger::getInstance().logMessage("  - '%s': %p", imagePair.first.c_str(), imagePair.second);
     }
     
-    if (m_images.count("mask")) {
-        mask = static_cast<float*>(m_images.at("mask")->getPixelData());
-        Logger::getInstance().logMessage("Found mask image");
+    // Find the first non-optional input as the main source
+    for (const auto& inputDef : m_xmlDef.getInputs()) {
+        if (!inputDef.optional && m_images.count(inputDef.name)) {
+            input = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
+            Logger::getInstance().logMessage("Found main source image: %s", inputDef.name.c_str());
+            break;
+        }
+    }
+    
+    // Find mask input (look for inputs with "mask" in the name)
+    for (const auto& inputDef : m_xmlDef.getInputs()) {
+        std::string lowerName = inputDef.name;
+        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
+        
+        if (lowerName.find("mask") != std::string::npos && m_images.count(inputDef.name)) {
+            mask = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
+            Logger::getInstance().logMessage("Found mask image: %s", inputDef.name.c_str());
+            break;
+        }
     }
     
     if (!input || !output) {
-        Logger::getInstance().logMessage("ERROR: Missing input or output image data");
+        Logger::getInstance().logMessage("ERROR: Missing input (%p) or output (%p) image data", input, output);
         return;
     }
     

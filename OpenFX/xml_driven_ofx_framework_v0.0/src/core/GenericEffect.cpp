@@ -18,21 +18,13 @@ GenericEffect::GenericEffect(OfxImageEffectHandle p_Handle, const std::string& x
         for (const auto& inputDef : m_xmlDef.getInputs()) {
             OFX::Clip* clip = nullptr;
             
-            // Map XML clip names to OFX standard names
-            if (inputDef.name == "source") {
-                try {
-                    clip = fetchClip(kOfxImageEffectSimpleSourceClipName);  // "Source"
-                    Logger::getInstance().logMessage("  - Fetched clip: %s", inputDef.name.c_str());
-                } catch (const std::exception& e) {
-                    Logger::getInstance().logMessage("  - Failed to fetch clip %s: %s", inputDef.name.c_str(), e.what());
-                }
-            } else {
-                try {
-                    clip = fetchClip(inputDef.name.c_str());  // Use XML name directly
-                    Logger::getInstance().logMessage("  - Fetched clip: %s", inputDef.name.c_str());
-                } catch (const std::exception& e) {
-                    Logger::getInstance().logMessage("  - Failed to fetch clip %s: %s", inputDef.name.c_str(), e.what());
-                }
+            // Use XML clip names directly (now using standard OFX names)
+            try {
+                Logger::getInstance().logMessage("  - Attempting to fetch clip: %s", inputDef.name.c_str());
+                clip = fetchClip(inputDef.name.c_str());
+                Logger::getInstance().logMessage("  - ✓ Fetched clip: %s", inputDef.name.c_str());
+            } catch (const std::exception& e) {
+                Logger::getInstance().logMessage("  - ✗ Failed to fetch clip %s: %s", inputDef.name.c_str(), e.what());
             }
             
             if (clip) {
@@ -279,26 +271,59 @@ void GenericEffect::setupAndProcess(const OFX::RenderArguments& p_Args) {
     Logger::getInstance().logMessage("GenericEffect::setupAndProcess called");
     
     try {
-        // Create processor
-        GenericProcessor processor(*this, m_xmlDef);
-        
-        // Get images
-        std::unique_ptr<OFX::Image> dst(m_dynamicClips["output"]->fetchImage(p_Args.time));
-        std::unique_ptr<OFX::Image> src(m_dynamicClips["source"]->fetchImage(p_Args.time));
-        
-        // Set up images map
-        std::map<std::string, OFX::Image*> images;
-        images["source"] = src.get();
-        images["output"] = dst.get();
-        
-        // Add mask if available
-        if (m_dynamicClips.count("mask") && m_dynamicClips["mask"]->isConnected()) {
-            std::unique_ptr<OFX::Image> mask(m_dynamicClips["mask"]->fetchImage(p_Args.time));
-            images["mask"] = mask.get();
-            Logger::getInstance().logMessage("Mask image added to processor");
+        // DEBUG: Check what clips we have
+        Logger::getInstance().logMessage("Available clips:");
+        for (const auto& clipPair : m_dynamicClips) {
+            Logger::getInstance().logMessage("  - '%s': %p", clipPair.first.c_str(), clipPair.second);
         }
         
+        // Create processor
+        GenericProcessor processor(*this, m_xmlDef);
+        Logger::getInstance().logMessage("GenericProcessor created successfully");
+        
+        // Get output image first (this should always work)
+        Logger::getInstance().logMessage("Fetching output image...");
+        if (!m_dynamicClips.count("output") || !m_dynamicClips["output"]) {
+            throw std::runtime_error("No output clip available");
+        }
+        std::unique_ptr<OFX::Image> dst(m_dynamicClips["output"]->fetchImage(p_Args.time));
+        Logger::getInstance().logMessage("Output image fetched successfully");
+        
+        // Set up images map dynamically from XML inputs
+        std::map<std::string, OFX::Image*> images;
+        images["output"] = dst.get();  // Output is always needed
+        
+        // Dynamic image fetching from XML input definitions
+        std::map<std::string, std::unique_ptr<OFX::Image>> imageStorage; // Keep images alive
+        
+        for (const auto& inputDef : m_xmlDef.getInputs()) {
+            Logger::getInstance().logMessage("Processing XML input: %s (optional: %s)", 
+                                           inputDef.name.c_str(), inputDef.optional ? "true" : "false");
+            
+            // Check if clip exists and is connected
+            if (m_dynamicClips.count(inputDef.name) && m_dynamicClips[inputDef.name]) {
+                if (!inputDef.optional || m_dynamicClips[inputDef.name]->isConnected()) {
+                    Logger::getInstance().logMessage("Fetching image for: %s", inputDef.name.c_str());
+                    imageStorage[inputDef.name] = std::unique_ptr<OFX::Image>(
+                        m_dynamicClips[inputDef.name]->fetchImage(p_Args.time)
+                    );
+                    images[inputDef.name] = imageStorage[inputDef.name].get();
+                    Logger::getInstance().logMessage("✓ Image added for: %s", inputDef.name.c_str());
+                } else {
+                    Logger::getInstance().logMessage("Optional input %s not connected", inputDef.name.c_str());
+                }
+            } else {
+                if (!inputDef.optional) {
+                    throw std::runtime_error("Required input " + inputDef.name + " not available");
+                }
+                Logger::getInstance().logMessage("Optional input %s not available", inputDef.name.c_str());
+            }
+        }
+        
+        Logger::getInstance().logMessage("Dynamic images map created with %d images", (int)images.size());
+        
         // Collect ALL parameter values at current time
+        Logger::getInstance().logMessage("Collecting parameter values...");
         std::map<std::string, ParameterValue> paramValues;
         for (const auto& paramDef : m_xmlDef.getParameters()) {
             ParameterValue value = getParameterValue(paramDef.name, p_Args.time);
@@ -307,13 +332,17 @@ void GenericEffect::setupAndProcess(const OFX::RenderArguments& p_Args) {
         }
         
         // Pass everything to processor
+        Logger::getInstance().logMessage("Setting processor data...");
         processor.setImages(images);
-        processor.setParameters(paramValues);  // THIS WAS MISSING!
+        processor.setParameters(paramValues);
         processor.setGPURenderArgs(p_Args);
         processor.setRenderWindow(p_Args.renderWindow);
+        Logger::getInstance().logMessage("About to call processor.process()...");
         processor.process();
+        Logger::getInstance().logMessage("Processor.process() completed successfully");
         
     } catch (const std::exception& e) {
-        Logger::getInstance().logMessage("ERROR: %s", e.what());
+        Logger::getInstance().logMessage("ERROR in setupAndProcess: %s", e.what());
+        throw;
     }
 }

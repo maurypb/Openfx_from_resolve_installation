@@ -3,7 +3,7 @@
     <description>Test blur effect for GenericEffectFactory validation</description>
     
     <inputs>
-        <source name="source" label="Input Image" border_mode="clamp" />
+        <source name="Source" label="Input Image" border_mode="clamp" />
         <source name="mask" label="Mask" optional="true" border_mode="black" />
     </inputs>
     
