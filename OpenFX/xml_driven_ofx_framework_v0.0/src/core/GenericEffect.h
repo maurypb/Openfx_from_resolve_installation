@@ -82,6 +82,8 @@ private:
      * @param p_Args Render arguments
      */
     void setupAndProcess(const OFX::RenderArguments& p_Args);
+
+    void fetchParametersLazily(); 
 };
 
 #endif // GENERIC_EFFECT_H

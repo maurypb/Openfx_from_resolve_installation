@@ -21,6 +21,12 @@ GenericEffectFactory::~GenericEffectFactory() {
 }
 
 void GenericEffectFactory::describe(OFX::ImageEffectDescriptor& p_Desc) {
+
+    Logger::getInstance().logMessage("GenericEffectFactory::describe called");
+    Logger::getInstance().logMessage("  Plugin identifier: %s", getPluginIdentifier().c_str());
+    Logger::getInstance().logMessage("  Effect name from XML: %s", m_xmlDef.getName().c_str());
+
+
     // Set basic effect info from XML
     p_Desc.setLabels(m_xmlDef.getName().c_str(), 
                     m_xmlDef.getName().c_str(), 
@@ -41,6 +47,13 @@ void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc,
         // Use hardcoded approach that was working
         Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called");
         
+        Logger::getInstance().logMessage("Factory creating parameters from XML...");
+        for (const auto& paramDef : m_xmlDef.getParameters()) {
+            Logger::getInstance().logMessage("  Factory creating: %s (%s)", paramDef.name.c_str(), paramDef.type.c_str());
+        }
+
+
+
         // Create basic clips manually (this was working)
         OFX::ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
         srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
@@ -85,6 +98,17 @@ void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc,
 
 OFX::ImageEffect* GenericEffectFactory::createInstance(OfxImageEffectHandle p_Handle, 
                                                       OFX::ContextEnum /*p_Context*/) {
+
+
+    Logger::getInstance().logMessage("GenericEffectFactory::createInstance called");
+    Logger::getInstance().logMessage("  Factory XML file: %s", m_xmlFilePath.c_str());
+    Logger::getInstance().logMessage("  Factory created these parameters:");
+    
+    for (const auto& paramDef : m_xmlDef.getParameters()) {
+        Logger::getInstance().logMessage("    - %s (%s)", paramDef.name.c_str(), paramDef.type.c_str());
+    }
+
+
     // TODO: This will create GenericEffect when we implement it
     // return new GenericEffect(p_Handle, m_xmlFilePath);
     

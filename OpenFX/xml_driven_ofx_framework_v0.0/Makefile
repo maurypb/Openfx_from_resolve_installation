@@ -34,7 +34,7 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o
+PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o
 
 # Main plugin objects
 PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
@@ -57,11 +57,11 @@ BlurPlugin.ofx: $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o $(OFX_SUP
 	echo '    <key>CFBundleExecutable</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <string>BlurPlugin.ofx</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <key>CFBundleIdentifier</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
-	echo '    <string>com.maury.gaussianblur</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
+	echo '    <string>com.xmlframework.TestBlurV2</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <key>CFBundleInfoDictionaryVersion</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <string>6.0</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <key>CFBundleName</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
-	echo '    <string>GaussianBlur</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
+	echo '    <string>TestBlurV2</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <key>CFBundlePackageType</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <string>BNDL</string>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
 	echo '    <key>CFBundleVersion</key>' >> BlurPlugin.ofx.bundle/Contents/Info.plist
@@ -97,6 +97,11 @@ GenericEffect.o: src/core/GenericEffect.cpp src/core/GenericEffect.h
 
 GenericProcessor.o: src/core/GenericProcessor.cpp
 	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+
+ParameterValue.o: src/core/ParameterValue.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+
+
 
 # Main plugin compilation
 BlurPlugin.o: BlurPlugin.cpp BlurPlugin.h

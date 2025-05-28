@@ -8,26 +8,36 @@
     </inputs>
     
     <parameters>
-        <parameter name="blurAmount" type="double" default="10.0" min="0.0" max="200.0" 
-                displayMin="0.0" displayMax="100.0" 
-                label="Blur Amount" hint="How much blur to apply" />
+        <parameter name="radius" type="double" default="5.0" min="0.0" max="100.0" 
+                displayMin="0.0" displayMax="50.0" 
+                label="Blur Radius" hint="Blur radius in pixels" />
                 
-        <parameter name="softness" type="double" default="0.5" min="0.0" max="2.0" 
+        <parameter name="quality" type="int" default="8" min="1" max="32" 
+                displayMin="1" displayMax="16" 
+                label="Quality" hint="Number of samples for the blur" />
+                
+        <parameter name="maskStrength" type="double" default="1.0" min="0.0" max="1.0" 
                 displayMin="0.0" displayMax="1.0" 
-                label="Softness" hint="Edge softness control" />
+                label="Mask Strength" hint="How strongly the mask affects the blur radius" />
     </parameters>
         
     <ui>
         <page name="Main">
             <column name="Basic">
-                <parameter>blurAmount</parameter>
-                <!-- Remove iterations temporarily -->
+                <parameter>radius</parameter>
+                <parameter>quality</parameter>
             </column>
             <column name="Masking">
-                <parameter>softness</parameter>
+                <parameter>maskStrength</parameter>
             </column>
         </page>
     </ui>
+    
+    <identity_conditions>
+        <condition>
+            <parameter name="radius" operator="lessEqual" value="0.0" />
+        </condition>
+    </identity_conditions>
     
     <kernels>
         <cuda file="TestBlur.cu" executions="1" />
