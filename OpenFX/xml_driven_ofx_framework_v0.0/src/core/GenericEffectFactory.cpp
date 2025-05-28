@@ -40,9 +40,9 @@ void GenericEffectFactory::describe(OFX::ImageEffectDescriptor& p_Desc) {
 void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
                                             OFX::ContextEnum /*p_Context*/) {
     try {
-        Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called");
+        Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called - XML params + manual clips");
         
-        // Create basic clips manually (this works)
+        // Create clips manually (this works reliably)
         OFX::ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
         srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         srcClip->setSupportsTiles(false);
@@ -51,45 +51,27 @@ void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc,
         dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         dstClip->setSupportsTiles(false);
         
-        // Add mask clip (this works)
         OFX::ClipDescriptor* maskClip = p_Desc.defineClip("mask");
         maskClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         maskClip->setSupportsTiles(false);
         maskClip->setOptional(true);
         maskClip->setIsMask(true);
 
-        // Create parameters manually - ALL THREE FROM XML
-        OFX::PageParamDescriptor* page = p_Desc.definePageParam("Controls");
-        page->setLabels("Controls", "Controls", "Controls");
+        Logger::getInstance().logMessage("✓ Manual clips created successfully");
 
-        // radius (double) - from XML
-        OFX::DoubleParamDescriptor* radius = p_Desc.defineDoubleParam("radius");
-        radius->setLabels("Blur Radius", "Blur Radius", "Blur Radius");
-        radius->setHint("Blur radius in pixels");
-        radius->setDefault(5.0);  // From XML default
-        radius->setRange(0.0, 100.0);  // From XML min/max
-        radius->setDisplayRange(0.0, 50.0);  // THIS CREATES SLIDERS!
-        page->addChild(*radius);
+        // CREATE PARAMETERS FROM XML (this works!)
+        std::map<std::string, OFX::PageParamDescriptor*> pages;
+        XMLParameterManager paramManager;
+        
+        if (!paramManager.createParameters(m_xmlDef, p_Desc, pages)) {
+            throw std::runtime_error("Failed to create parameters from XML");
+        }
+        
+        if (!paramManager.organizeUI(m_xmlDef, p_Desc, pages)) {
+            throw std::runtime_error("Failed to organize UI from XML");
+        }
 
-        // quality (int) - MISSING PARAMETER ADDED
-        OFX::IntParamDescriptor* quality = p_Desc.defineIntParam("quality");
-        quality->setLabels("Quality", "Quality", "Quality");
-        quality->setHint("Number of samples for the blur");
-        quality->setDefault(8);  // From XML default
-        quality->setRange(1, 32);  // From XML min/max
-        quality->setDisplayRange(1, 16);  // THIS CREATES SLIDERS!
-        page->addChild(*quality);
-
-        // maskStrength (double) - from XML
-        OFX::DoubleParamDescriptor* maskStrength = p_Desc.defineDoubleParam("maskStrength");
-        maskStrength->setLabels("Mask Strength", "Mask Strength", "Mask Strength");
-        maskStrength->setHint("How strongly the mask affects the blur radius");
-        maskStrength->setDefault(1.0);  // From XML default
-        maskStrength->setRange(0.0, 1.0);  // From XML min/max
-        maskStrength->setDisplayRange(0.0, 1.0);  // THIS CREATES SLIDERS!
-        page->addChild(*maskStrength);
-
-        Logger::getInstance().logMessage("✓ Manual clips and parameters created (all 3 parameters)");
+        Logger::getInstance().logMessage("✓ XML parameters created successfully");
         
     } catch (const std::exception& e) {
         Logger::getInstance().logMessage("✗ GenericEffectFactory::describeInContext failed: %s", e.what());
