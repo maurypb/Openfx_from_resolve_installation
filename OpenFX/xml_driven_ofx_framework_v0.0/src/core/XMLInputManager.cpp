@@ -1,10 +1,12 @@
 #include "XMLInputManager.h"
+#include "../../Logger.h"
 #include <iostream>
 #include <stdexcept>
 #include <algorithm> // For std::transform
 #include <cctype>    // For ::tolower
 
 XMLInputManager::XMLInputManager() {
+    Logger::getInstance().logMessage("XMLInputManager::constructor");
 }
 
 XMLInputManager::~XMLInputManager() {
@@ -15,6 +17,7 @@ bool XMLInputManager::createInputs(
     OFX::ImageEffectDescriptor& desc,
     std::map<std::string, std::string>& clipBorderModes
 ) {
+    Logger::getInstance().logMessage("XMLInputManager::starting createInputs");
     try {
         // Create all input clips
         for (const auto& inputDef : xmlDef.getInputs()) {
@@ -23,7 +26,7 @@ bool XMLInputManager::createInputs(
             // Store border mode for each clip
             clipBorderModes[inputDef.name] = inputDef.borderMode;
         }
-        
+        Logger::getInstance().logMessage("XMLInputManager::creating the output clip...");
         // Create output clip
         OFX::ClipDescriptor* dstClip = desc.defineClip(kOfxImageEffectOutputClipName);
         dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
@@ -32,6 +35,7 @@ bool XMLInputManager::createInputs(
         return true;
     }
     catch (const std::exception& e) {
+        Logger::getInstance().logMessage("XMLInputManager::error creating inputs");
         std::cerr << "Error creating inputs: " << e.what() << std::endl;
         return false;
     }

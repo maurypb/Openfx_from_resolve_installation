@@ -8,7 +8,7 @@
     </inputs>
     
     <parameters>
-        <parameter name="radius" type="double" default="5.0" min="0.0" max="100.0" 
+        <parameter name="radius" type="double" default="30.0" min="0.0" max="100.0" 
                 displayMin="0.0" displayMax="50.0" 
                 label="Blur Radius" hint="Blur radius in pixels" />
                 

@@ -1,8 +1,6 @@
 #include "GenericEffectFactory.h"
 #include "XMLParameterManager.h"
 #include "XMLInputManager.h"
-#include "../../BlurPlugin.h"  // Add this line
-// Note: GenericEffect.h will be included when we implement it
 #include "GenericEffect.h"
 #include "../../Logger.h"
 #include <stdexcept>
@@ -21,11 +19,9 @@ GenericEffectFactory::~GenericEffectFactory() {
 }
 
 void GenericEffectFactory::describe(OFX::ImageEffectDescriptor& p_Desc) {
-
     Logger::getInstance().logMessage("GenericEffectFactory::describe called");
     Logger::getInstance().logMessage("  Plugin identifier: %s", getPluginIdentifier().c_str());
     Logger::getInstance().logMessage("  Effect name from XML: %s", m_xmlDef.getName().c_str());
-
 
     // Set basic effect info from XML
     p_Desc.setLabels(m_xmlDef.getName().c_str(), 
@@ -44,17 +40,9 @@ void GenericEffectFactory::describe(OFX::ImageEffectDescriptor& p_Desc) {
 void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc, 
                                             OFX::ContextEnum /*p_Context*/) {
     try {
-        // Use hardcoded approach that was working
         Logger::getInstance().logMessage("GenericEffectFactory::describeInContext called");
         
-        Logger::getInstance().logMessage("Factory creating parameters from XML...");
-        for (const auto& paramDef : m_xmlDef.getParameters()) {
-            Logger::getInstance().logMessage("  Factory creating: %s (%s)", paramDef.name.c_str(), paramDef.type.c_str());
-        }
-
-
-
-        // Create basic clips manually (this was working)
+        // Create basic clips manually (this works)
         OFX::ClipDescriptor* srcClip = p_Desc.defineClip(kOfxImageEffectSimpleSourceClipName);
         srcClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         srcClip->setSupportsTiles(false);
@@ -63,32 +51,45 @@ void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc,
         dstClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         dstClip->setSupportsTiles(false);
         
-        // Add mask clip (this was working)
+        // Add mask clip (this works)
         OFX::ClipDescriptor* maskClip = p_Desc.defineClip("mask");
         maskClip->addSupportedComponent(OFX::ePixelComponentRGBA);
         maskClip->setSupportsTiles(false);
         maskClip->setOptional(true);
         maskClip->setIsMask(true);
 
-        // Create parameters manually (this was working)
+        // Create parameters manually - ALL THREE FROM XML
         OFX::PageParamDescriptor* page = p_Desc.definePageParam("Controls");
         page->setLabels("Controls", "Controls", "Controls");
 
-        OFX::DoubleParamDescriptor* blurAmount = p_Desc.defineDoubleParam("blurAmount");
-        blurAmount->setLabels("Blur Amount", "Blur Amount", "Blur Amount");
-        blurAmount->setHint("How much blur to apply");
-        blurAmount->setDefault(10.0);
-        blurAmount->setRange(0.0, 200.0);
-        page->addChild(*blurAmount);
+        // radius (double) - from XML
+        OFX::DoubleParamDescriptor* radius = p_Desc.defineDoubleParam("radius");
+        radius->setLabels("Blur Radius", "Blur Radius", "Blur Radius");
+        radius->setHint("Blur radius in pixels");
+        radius->setDefault(5.0);  // From XML default
+        radius->setRange(0.0, 100.0);  // From XML min/max
+        radius->setDisplayRange(0.0, 50.0);  // THIS CREATES SLIDERS!
+        page->addChild(*radius);
 
-        OFX::DoubleParamDescriptor* softness = p_Desc.defineDoubleParam("softness");
-        softness->setLabels("Softness", "Softness", "Softness");
-        softness->setHint("Edge softness control");
-        softness->setDefault(0.5);
-        softness->setRange(0.0, 2.0);
-        page->addChild(*softness);
+        // quality (int) - MISSING PARAMETER ADDED
+        OFX::IntParamDescriptor* quality = p_Desc.defineIntParam("quality");
+        quality->setLabels("Quality", "Quality", "Quality");
+        quality->setHint("Number of samples for the blur");
+        quality->setDefault(8);  // From XML default
+        quality->setRange(1, 32);  // From XML min/max
+        quality->setDisplayRange(1, 16);  // THIS CREATES SLIDERS!
+        page->addChild(*quality);
 
-        Logger::getInstance().logMessage("✓ Manual clips and parameters created");
+        // maskStrength (double) - from XML
+        OFX::DoubleParamDescriptor* maskStrength = p_Desc.defineDoubleParam("maskStrength");
+        maskStrength->setLabels("Mask Strength", "Mask Strength", "Mask Strength");
+        maskStrength->setHint("How strongly the mask affects the blur radius");
+        maskStrength->setDefault(1.0);  // From XML default
+        maskStrength->setRange(0.0, 1.0);  // From XML min/max
+        maskStrength->setDisplayRange(0.0, 1.0);  // THIS CREATES SLIDERS!
+        page->addChild(*maskStrength);
+
+        Logger::getInstance().logMessage("✓ Manual clips and parameters created (all 3 parameters)");
         
     } catch (const std::exception& e) {
         Logger::getInstance().logMessage("✗ GenericEffectFactory::describeInContext failed: %s", e.what());
@@ -98,37 +99,14 @@ void GenericEffectFactory::describeInContext(OFX::ImageEffectDescriptor& p_Desc,
 
 OFX::ImageEffect* GenericEffectFactory::createInstance(OfxImageEffectHandle p_Handle, 
                                                       OFX::ContextEnum /*p_Context*/) {
-
-
     Logger::getInstance().logMessage("GenericEffectFactory::createInstance called");
     Logger::getInstance().logMessage("  Factory XML file: %s", m_xmlFilePath.c_str());
-    Logger::getInstance().logMessage("  Factory created these parameters:");
     
-    for (const auto& paramDef : m_xmlDef.getParameters()) {
-        Logger::getInstance().logMessage("    - %s (%s)", paramDef.name.c_str(), paramDef.type.c_str());
-    }
-
-
-    // TODO: This will create GenericEffect when we implement it
-    // return new GenericEffect(p_Handle, m_xmlFilePath);
-    
-    // For now, return nullptr to avoid compilation errors
-    // This will be implemented in Step 3.3
-    // throw std::runtime_error("GenericEffect not yet implemented - Step 3.3");
-     //return nullptr;
     return new GenericEffect(p_Handle, m_xmlFilePath);
-
-    //return new BlurPlugin(p_Handle);  // Use working BlurPlugin temporarily
-
-    // Skip BlurPlugin completely
-    //throw std::runtime_error("Test - no instance creation");
-
-
 }
 
 std::string GenericEffectFactory::generatePluginIdentifier(const std::string& xmlFile) {
-    // For now, create a simple identifier from filename
-    // We'll improve this when we can actually load the XML
+    // Create identifier from filename
     std::string basename = xmlFile;
     size_t lastSlash = basename.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
@@ -146,7 +124,6 @@ std::string GenericEffectFactory::generatePluginIdentifier(const std::string& xm
 
 std::string GenericEffectFactory::generatePluginIdentifier() {
     // Generate unique identifier from effect name and category
-    // Format: com.xmlframework.category.name
     std::string category = m_xmlDef.getCategory();
     std::string name = m_xmlDef.getName();
     
@@ -174,14 +151,13 @@ void GenericEffectFactory::setupBasicProperties(OFX::ImageEffectDescriptor& p_De
     // Set basic flags
     p_Desc.setSingleInstance(false);
     p_Desc.setHostFrameThreading(false);
-    p_Desc.setSupportsMultiResolution(false);  // May be configurable from XML in future
-    p_Desc.setSupportsTiles(false);            // May be configurable from XML in future
+    p_Desc.setSupportsMultiResolution(false);
+    p_Desc.setSupportsTiles(false);
     p_Desc.setTemporalClipAccess(false);
     p_Desc.setRenderTwiceAlways(false);
     p_Desc.setSupportsMultipleClipPARs(false);
     
     // Indicates that plugin output depends on pixel location
-    // (most image effects do depend on spatial information)
     p_Desc.setNoSpatialAwareness(false);
 }
 

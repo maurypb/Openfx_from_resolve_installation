@@ -1,0 +1,56 @@
+=== New BlurPlugin Session Started ===
+Session time: 2025-05-28 09:08:43
+GenericEffectFactory::describe called
+  Plugin identifier: com.xmlframework.TestBlurV2
+  Effect name from XML: TestBlurV2
+GenericEffectFactory::describeInContext called
+Factory creating parameters from XML...
+  Factory creating: radius (double)
+  Factory creating: quality (int)
+  Factory creating: maskStrength (double)
+✓ Manual clips and parameters created
+GenericEffectFactory::createInstance called
+  Factory XML file: /mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml
+  Factory created these parameters:
+    - radius (double)
+    - quality (int)
+    - maskStrength (double)
+GenericEffect: Constructor called with XML file: /mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml
+GenericEffect: XMLEffectDefinition created successfully
+GenericEffect: Fetching clips from XML
+  - Fetched clip: source
+  - Fetched clip: mask
+  - Fetched output clip
+GenericEffect created successfully with 0 parameters (will fetch on first render) and 3 clips
+GenericEffect::render called
+Parameters not fetched yet, fetching now...
+GenericEffect: Fetching parameters lazily on first render
+=== DIAGNOSTIC: Checking if any parameters exist ===
+getParam("nonexistent") failed as expected: kOfxStatErrUnknown
+Effect handle: 0x7f07a8ddb900
+Effect context: 5
+=== END DIAGNOSTIC ===
+=== TESTING HARDCODED PARAMETER NAMES ===
+✓ Hardcoded fetchDoubleParam("radius") SUCCEEDED: 0x7f07aa463330
+✗ Hardcoded fetchIntParam("quality") FAILED: kOfxStatErrUnknown
+=== END HARDCODED TEST ===
+  - Trying to fetch parameter: radius (double)
+    - Calling fetchDoubleParam...
+    - fetchDoubleParam succeeded
+    - ✓ Success!
+  - Trying to fetch parameter: quality (int)
+    - Calling fetchIntParam...
+    - fetchIntParam threw exception: kOfxStatErrUnknown
+    - ✗ Failed to fetch, will use XML defaults
+  - Trying to fetch parameter: maskStrength (double)
+    - Calling fetchDoubleParam...
+    - fetchDoubleParam succeeded
+    - ✓ Success!
+Parameter fetching completed: 2 parameters available
+Format supported, calling setupAndProcess
+GenericEffect::setupAndProcess called
+GenericProcessor created for effect: TestBlurV2
+GenericProcessor: Set 2 images
+GenericProcessor::processImagesCUDA called
+GenericProcessor::callDynamicKernel called for platform: cuda
+Processing 1920x800 image

@@ -38,6 +38,14 @@ void GenericProcessor::setImages(const std::map<std::string, OFX::Image*>& image
 void GenericProcessor::setParameters(const std::map<std::string, ParameterValue>& params) {
     m_paramValues = params;
     Logger::getInstance().logMessage("GenericProcessor: Set %d parameters", (int)params.size());
+    
+    // Log the actual parameter values we received
+    for (const auto& param : params) {
+        Logger::getInstance().logMessage("  Parameter %s = %s (type: %s)", 
+                                       param.first.c_str(), 
+                                       param.second.asString().c_str(),
+                                       param.second.getType().c_str());
+    }
 }
 
 void GenericProcessor::processImagesCUDA() {
@@ -118,84 +126,15 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
     
     Logger::getInstance().logMessage("Found %s kernel: %s", platform.c_str(), kernels[0].file.c_str());
     
-    // // Build parameter map dynamically from XML (no hardcoded names!)
-    // std::map<std::string, ParameterValue> finalParams;
+    // Extract parameters from the actual parameter values (not hardcoded!)
+    float radius = m_paramValues.count("radius") ? m_paramValues.at("radius").asFloat() : 5.0f;
+    int quality = m_paramValues.count("quality") ? m_paramValues.at("quality").asInt() : 8;  
+    float maskStrength = m_paramValues.count("maskStrength") ? m_paramValues.at("maskStrength").asFloat() : 1.0f;
     
-    // for (const auto& paramDef : m_xmlDef.getParameters()) {
-    //     if (m_paramValues.count(paramDef.name)) {
-    //         Logger::getInstance().logMessage("  - Using actual value");
-    //         // Use actual parameter value
-    //         finalParams[paramDef.name] = m_paramValues.at(paramDef.name);
-    //     } else {
-    //         Logger::getInstance().logMessage("  - Using XML default: %.2f", paramDef.defaultValue);
-    //         if (paramDef.type == "double" || paramDef.type == "float") {
-    //             Logger::getInstance().logMessage("  - About to create ParameterValue...");
-                
-    //             // Test if the defaultValue is valid
-    //             double testValue = paramDef.defaultValue;
-    //             Logger::getInstance().logMessage("  - Copied defaultValue: %.2f", testValue);
-                
-    //             // Test creating ParameterValue with a known good value first
-    //             ParameterValue goodValue(5.0);
-    //             Logger::getInstance().logMessage("  - Created ParameterValue with literal 5.0");
-                
-    //             // Now try with the XML value
-    //             ParameterValue xmlValue(testValue);
-    //             Logger::getInstance().logMessage("  - Created ParameterValue with XML value");
-    //         } else if (paramDef.type == "int") {
-    //             finalParams[paramDef.name] = ParameterValue((int)paramDef.defaultValue);
-    //             Logger::getInstance().logMessage("  - Created int ParameterValue successfully");
-    //         } else if (paramDef.type == "bool") {
-    //             finalParams[paramDef.name] = ParameterValue(paramDef.defaultBool);
-    //             Logger::getInstance().logMessage("  - Created bool ParameterValue successfully");
-    //         }
-    //     }
-        
-    //     Logger::getInstance().logMessage("Parameter %s (%s) = %s", 
-    //                                    paramDef.name.c_str(), 
-    //                                    paramDef.type.c_str(),
-    //                                    finalParams[paramDef.name].asString().c_str());
-    // }
+    Logger::getInstance().logMessage("Using REAL parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
+                                   radius, quality, maskStrength);
     
-    // // Build image map dynamically from XML (no hardcoded names!)
-    // std::map<std::string, float*> imagePointers;
-    
-    // for (const auto& inputDef : m_xmlDef.getInputs()) {
-    //     if (m_images.count(inputDef.name)) {
-    //         imagePointers[inputDef.name] = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
-    //         Logger::getInstance().logMessage("Found XML input: %s", inputDef.name.c_str());
-    //     } else if (!inputDef.optional) {
-    //         Logger::getInstance().logMessage("ERROR: Required input %s not found", inputDef.name.c_str());
-    //         return;
-    //     }
-    // }
-    
-    // // Add output image
-    // imagePointers["output"] = static_cast<float*>(_dstImg->getPixelData());
-    
-    // // For now, we still need to extract specific parameters for RunCudaKernel signature
-    // // TODO: Phase 4 will make this completely dynamic
-    // Logger::getInstance().logMessage("Extracting parameters for kernel call...");
-    // Logger::getInstance().logMessage("Available parameters: %d", (int)finalParams.size());
-    
-    // float radius = finalParams.count("radius") ? finalParams["radius"].asFloat() : 5.0f;
-    // int quality = finalParams.count("quality") ? finalParams["quality"].asInt() : 8;  
-    // float maskStrength = finalParams.count("maskStrength") ? finalParams["maskStrength"].asFloat() : 1.0f;
-    
-    // Logger::getInstance().logMessage("Using defaults: radius=%.2f, quality=%d, maskStrength=%.2f", radius, quality, maskStrength);
-    
-    // float* input = imagePointers.count("source") ? imagePointers["source"] : nullptr;
-    // float* mask = imagePointers.count("mask") ? imagePointers["mask"] : nullptr;
-    // float* output = imagePointers["output"];
-    
-    // if (!input || !output) {
-    //     Logger::getInstance().logMessage("ERROR: Missing input or output image data");
-    //     return;
-    // }
-    
-    Logger::getInstance().logMessage("Skipping parameter map building, using hardcoded defaults");
-
-    // Get image pointers directly
+    // Get image pointers
     float* input = nullptr;
     float* mask = nullptr;
     float* output = static_cast<float*>(_dstImg->getPixelData());
@@ -215,20 +154,7 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
         return;
     }
     
-    // Use hardcoded parameters
-    float radius = 10.0f;
-    int quality = 8;
-    float maskStrength = 1.0f;
-    
-    Logger::getInstance().logMessage("Using hardcoded: radius=%.2f, quality=%d, maskStrength=%.2f", radius, quality, maskStrength);
-    
-
-
-
-
-
-
-    // Call the appropriate kernel (still hardcoded for now - Phase 4 will make this dynamic)
+    // Call the appropriate kernel with REAL parameters
     if (platform == "cuda") {
 #ifndef __APPLE__
         RunCudaKernel(_pCudaStream, width, height, radius, quality, maskStrength, input, mask, output);

@@ -1,7 +1,5 @@
 (base) [flame@george xml_driven_ofx_framework_v0.0]$ pwd
 /mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0
-(base) [flame@george xml_driven_ofx_framework_v0.0]$ 
-(base) [flame@george xml_driven_ofx_framework_v0.0]$ 
 (base) [flame@george xml_driven_ofx_framework_v0.0]$ tree
 .
 ├── BlurPlugin.cpp
@@ -47,14 +45,22 @@
 │   ├── obsolete
 │   │   ├── CudaKernel copy.cu
 │   │   ├── genericeffect_design(step_3_of_implementation)250525_1230.md
+│   │   ├── implementation_lessons.md
 │   │   ├── implementation_plan_updates.md
 │   │   ├── learning_session_context_250518_2050.md
 │   │   ├── learning_session_context_250519_1715.md
 │   │   ├── learning_session_context.md
+│   │   ├── new_files
+│   │   │   ├── example-usage.txt
+│   │   │   └── makefile-additions.txt
 │   │   ├── reconciled_implementation_plan.md
 │   │   ├── session-synopsis.txt
+│   │   ├── test
+│   │   │   └── xml
+│   │   │       └── testEffect.xml
 │   │   ├── updated-schema-xml_250516_2320.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250516_2320.md
+│   │   ├── xml_driven_ofx_generation_framework-specification_250517_120.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250518_1247.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250518_1255.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250518_1258.md
@@ -72,14 +78,16 @@
 │   │   ├── xml_framework_design_notes_250518_1310.md
 │   │   └── xml_framework_design_notes_250518_1508.md
 │   ├── ofx-modification-guide.txt
-│   ├── xml_driven_ofx_generation_framework-specification_250517_120.md
-│   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250526_1143.md
+│   ├── xml_driven_ofx_generation_framework-specification_250526_1310.md
+│   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250526_1323.md
 │   ├── xml_driven_ofx_generation_framework_version2-implementation-plan_250516_2355.md
 │   ├── XMLEffectDefinition-README.md
 │   ├── xml_framework_design_notes_250518_1800.md
 │   ├── XMLInputManager-README.md
 │   └── XMLParameterManager-README.md
 ├── GenericEffectFactory.o
+├── GenericEffect.o
+├── GenericProcessor.o
 ├── include
 │   └── pugixml
 │       ├── pugiconfig.hpp
@@ -91,9 +99,6 @@
 ├── Makefile
 ├── Makefile.xml
 ├── MetalKernel.mm
-├── new_files
-│   ├── example-usage.txt
-│   └── makefile-additions.txt
 ├── ofxsCore.o
 ├── ofxsImageEffect.o
 ├── ofxsInteract.o
@@ -104,6 +109,7 @@
 ├── ofxsPropertyValidation.o
 ├── OpenCLKernel.cpp
 ├── OpenCLKernel.o
+├── ParameterValue.o
 ├── PluginClips.cpp
 ├── PluginClips.h
 ├── PluginClips.o
@@ -113,10 +119,17 @@
 ├── pugixml.o
 ├── src
 │   ├── core
+│   │   ├── GenericEffect.cpp
 │   │   ├── GenericEffectFactory.cpp
 │   │   ├── GenericEffectFactory.h
+│   │   ├── GenericEffect.h
+│   │   ├── GenericProcessor.cpp
+│   │   ├── GenericProcessor.h
 │   │   ├── ParameterValue.cpp
 │   │   ├── ParameterValue.h
+│   │   ├── updated_mid_debug
+│   │   │   ├── GenericEffectFactory_mid_debug_at_end_of_prior_chat.cpp
+│   │   │   └── GenericEffect_mid_debug_at_end_of_prior_chat.cpp
 │   │   ├── XMLEffectDefinition.cpp
 │   │   ├── XMLEffectDefinition.h
 │   │   ├── XMLInputManager.cpp
@@ -128,11 +141,9 @@
 │       ├── XMLEffectDefinitionTest.cpp
 │       ├── XMLInputManagerTest.cpp
 │       └── XMLParameterManagerTest.cpp
-├── test
-│   └── xml
-│       └── testEffect.xml
-├── TestEffect.xml
+├── TestBlurV2.xml
+├── tree_as_of_250526_1255
 └── XMLEffectDefinition.o
 
-20 directories, 109 files
+21 directories, 121 files
 (base) [flame@george xml_driven_ofx_framework_v0.0]$ 

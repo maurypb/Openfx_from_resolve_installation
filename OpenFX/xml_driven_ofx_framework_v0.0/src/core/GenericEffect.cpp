@@ -5,8 +5,6 @@
 #include <stdexcept>
 #include <cstring>
 
-
-
 GenericEffect::GenericEffect(OfxImageEffectHandle p_Handle, const std::string& xmlFile)
     : OFX::ImageEffect(p_Handle), m_xmlDef(xmlFile), m_xmlFilePath(xmlFile) {
     
@@ -67,49 +65,6 @@ GenericEffect::~GenericEffect() {
 void GenericEffect::fetchParametersLazily() {
     Logger::getInstance().logMessage("GenericEffect: Fetching parameters lazily on first render");
     
-
-    Logger::getInstance().logMessage("=== DIAGNOSTIC: Checking if any parameters exist ===");
-
-    // Try to get parameter count or list from OFX
-    try {
-        // Test if we can access the parameter set at all
-        OFX::Param* testParam = getParam("nonexistent");
-        Logger::getInstance().logMessage("getParam() call succeeded (unexpected)");
-    } catch (const std::exception& e) {
-        Logger::getInstance().logMessage("getParam(\"nonexistent\") failed as expected: %s", e.what());
-    }
-    
-    // Check if the effect instance has been properly initialized
-    Logger::getInstance().logMessage("Effect handle: %p", getHandle());
-    Logger::getInstance().logMessage("Effect context: %d", getContext());
-    
-    Logger::getInstance().logMessage("=== END DIAGNOSTIC ===");
-
-
-
-
-    // TEST: Try hardcoded parameter names first
-    Logger::getInstance().logMessage("=== TESTING HARDCODED PARAMETER NAMES ===");
-    try {
-        OFX::Param* testParam = fetchDoubleParam("radius");
-        Logger::getInstance().logMessage("✓ Hardcoded fetchDoubleParam(\"radius\") SUCCEEDED: %p", testParam);
-    } catch (const std::exception& e) {
-        Logger::getInstance().logMessage("✗ Hardcoded fetchDoubleParam(\"radius\") FAILED: %s", e.what());
-    }
-    
-    try {
-        OFX::Param* testParam = fetchIntParam("quality");
-        Logger::getInstance().logMessage("✓ Hardcoded fetchIntParam(\"quality\") SUCCEEDED: %p", testParam);
-    } catch (const std::exception& e) {
-        Logger::getInstance().logMessage("✗ Hardcoded fetchIntParam(\"quality\") FAILED: %s", e.what());
-    }
-    Logger::getInstance().logMessage("=== END HARDCODED TEST ===");
-
-
-
-
-
-
     for (const auto& paramDef : m_xmlDef.getParameters()) {
         Logger::getInstance().logMessage("  - Trying to fetch parameter: %s (%s)", paramDef.name.c_str(), paramDef.type.c_str());
         
@@ -201,9 +156,6 @@ void GenericEffect::fetchParametersLazily() {
     
     Logger::getInstance().logMessage("Parameter fetching completed: %d parameters available", (int)m_dynamicParams.size());
 }
-
-
-
 
 void GenericEffect::render(const OFX::RenderArguments& p_Args) {
     Logger::getInstance().logMessage("GenericEffect::render called");
@@ -339,7 +291,24 @@ void GenericEffect::setupAndProcess(const OFX::RenderArguments& p_Args) {
         images["source"] = src.get();
         images["output"] = dst.get();
         
+        // Add mask if available
+        if (m_dynamicClips.count("mask") && m_dynamicClips["mask"]->isConnected()) {
+            std::unique_ptr<OFX::Image> mask(m_dynamicClips["mask"]->fetchImage(p_Args.time));
+            images["mask"] = mask.get();
+            Logger::getInstance().logMessage("Mask image added to processor");
+        }
+        
+        // Collect ALL parameter values at current time
+        std::map<std::string, ParameterValue> paramValues;
+        for (const auto& paramDef : m_xmlDef.getParameters()) {
+            ParameterValue value = getParameterValue(paramDef.name, p_Args.time);
+            paramValues[paramDef.name] = value;
+            Logger::getInstance().logMessage("Parameter %s = %s", paramDef.name.c_str(), value.asString().c_str());
+        }
+        
+        // Pass everything to processor
         processor.setImages(images);
+        processor.setParameters(paramValues);  // THIS WAS MISSING!
         processor.setGPURenderArgs(p_Args);
         processor.setRenderWindow(p_Args.renderWindow);
         processor.process();
