@@ -9,9 +9,10 @@
 GenericEffectFactory::GenericEffectFactory(const std::string& xmlFile) 
     : OFX::PluginFactoryHelper<GenericEffectFactory>(generatePluginIdentifier(xmlFile), 1, 0),
       m_xmlDef(xmlFile), m_xmlFilePath(xmlFile) {
-    
+    Logger::getInstance().logMessage("GenericEffectFactory::constructor started");
     // Store the generated identifier
     m_pluginIdentifier = generatePluginIdentifier(xmlFile);
+    Logger::getInstance().logMessage("GenericEffectFactory::constructor finishing");
 }
 
 GenericEffectFactory::~GenericEffectFactory() {

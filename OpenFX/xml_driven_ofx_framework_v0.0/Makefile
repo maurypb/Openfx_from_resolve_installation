@@ -34,10 +34,10 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o KernelWrappers.o
+PLUGIN_MODULES = Logger.o  GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o 
 
 # Main plugin objects
-PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
+PLUGIN_OBJS = GenericPlugin.o $(PLUGIN_MODULES)
 
 # OpenFX Support objects
 OFX_SUPPORT_OBJS = ofxsCore.o ofxsImageEffect.o ofxsInteract.o ofxsLog.o ofxsMultiThread.o ofxsParams.o ofxsProperty.o ofxsPropertyValidation.o
@@ -73,53 +73,44 @@ BlurPlugin.ofx: $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o $(OFX_SUP
 Logger.o: Logger.cpp Logger.h
 	$(CXX) -c $< $(CXXFLAGS)
 
-PluginClips.o: PluginClips.cpp PluginClips.h
-	$(CXX) -c $< $(CXXFLAGS)
 
-PluginParameters.o: PluginParameters.cpp PluginParameters.h
-	$(CXX) -c $< $(CXXFLAGS)
-
-BlurPluginParameters.o: BlurPluginParameters.cpp BlurPluginParameters.h
-	$(CXX) -c $< $(CXXFLAGS)
 
 # NEW COMPILATION RULES - THESE WERE MISSING
 GenericEffectFactory.o: src/core/GenericEffectFactory.cpp src/core/GenericEffectFactory.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 XMLEffectDefinition.o: src/core/XMLEffectDefinition.cpp src/core/XMLEffectDefinition.h
-	$(CXX) -c $< $(CXXFLAGS) -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./include/pugixml -I./
 
 
 # MISSING COMPILATION RULES ADDED
 XMLParameterManager.o: src/core/XMLParameterManager.cpp src/core/XMLParameterManager.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 XMLInputManager.o: src/core/XMLInputManager.cpp src/core/XMLInputManager.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 KernelWrappers.o: src/core/KernelWrappers.cpp src/core/KernelWrappers.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./ -I${CUDAPATH}/include
 
-KernelWrappers.o: src/core/KernelWrappers.cpp src/core/KernelWrappers.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I${CUDAPATH}/include
 
 pugixml.o: include/pugixml/pugixml.cpp
 	$(CXX) -c $< $(CXXFLAGS)
 
 GenericEffect.o: src/core/GenericEffect.cpp src/core/GenericEffect.h
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 GenericProcessor.o: src/core/GenericProcessor.cpp
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 ParameterValue.o: src/core/ParameterValue.cpp
-	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 
 
 # Main plugin compilation
-BlurPlugin.o: BlurPlugin.cpp BlurPlugin.h
-	$(CXX) -c $< $(CXXFLAGS)
+GenericPlugin.o: src/core/GenericPlugin.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
 # CUDA kernel compilation
 CudaKernel.o: CudaKernel.cu
