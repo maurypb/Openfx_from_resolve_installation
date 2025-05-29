@@ -105,7 +105,7 @@ void GenericProcessor::multiThreadProcessImages(OfxRectI p_ProcWindow) {
 void GenericProcessor::callDynamicKernel(const std::string& platform) {
     Logger::getInstance().logMessage("GenericProcessor::callDynamicKernel called for platform: %s", platform.c_str());
     
-    // Get image dimensions from output image (same pattern as ImageBlurrer)
+    // Get image dimensions from output image
     if (!_dstImg) {
         Logger::getInstance().logMessage("ERROR: No destination image");
         return;
@@ -126,41 +126,77 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
     
     Logger::getInstance().logMessage("Found %s kernel: %s", platform.c_str(), kernels[0].file.c_str());
     
-    // Extract parameters from the actual parameter values (not hardcoded!)
-    float radius = m_paramValues.count("radius") ? m_paramValues.at("radius").asFloat() : 5.0f;
-    int quality = m_paramValues.count("quality") ? m_paramValues.at("quality").asInt() : 8;  
-    float maskStrength = m_paramValues.count("maskStrength") ? m_paramValues.at("maskStrength").asFloat() : 1.0f;
-    
-    Logger::getInstance().logMessage("Using REAL parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
-                                   radius, quality, maskStrength);
-    
-    // Get image pointers DYNAMICALLY from XML inputs
-    float* input = nullptr;
-    float* mask = nullptr;
-    float* output = static_cast<float*>(_dstImg->getPixelData());
-    
-    Logger::getInstance().logMessage("Available images in processor:");
-    for (const auto& imagePair : m_images) {
-        Logger::getInstance().logMessage("  - '%s': %p", imagePair.first.c_str(), imagePair.second);
+    // Build complete parameter map from XML
+    Logger::getInstance().logMessage("Building parameter map from XML:");
+    std::map<std::string, ParameterValue> allParams;
+    for (const auto& paramDef : m_xmlDef.getParameters()) {
+        if (m_paramValues.count(paramDef.name)) {
+            allParams[paramDef.name] = m_paramValues.at(paramDef.name);
+            Logger::getInstance().logMessage("  - %s = %s", paramDef.name.c_str(), 
+                                           allParams[paramDef.name].asString().c_str());
+        } else {
+            // Use XML default if parameter not provided
+            if (paramDef.type == "double" || paramDef.type == "float") {
+                allParams[paramDef.name] = ParameterValue(paramDef.defaultValue);
+            } else if (paramDef.type == "int") {
+                allParams[paramDef.name] = ParameterValue((int)paramDef.defaultValue);
+            } else if (paramDef.type == "bool") {
+                allParams[paramDef.name] = ParameterValue(paramDef.defaultBool);
+            }
+            Logger::getInstance().logMessage("  - %s = %s (XML default)", paramDef.name.c_str(), 
+                                           allParams[paramDef.name].asString().c_str());
+        }
     }
     
-    // Find the first non-optional input as the main source
+    // Build complete image map from XML
+    Logger::getInstance().logMessage("Building image map from XML:");
+    std::map<std::string, float*> allImages;
     for (const auto& inputDef : m_xmlDef.getInputs()) {
-        if (!inputDef.optional && m_images.count(inputDef.name)) {
-            input = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
-            Logger::getInstance().logMessage("Found main source image: %s", inputDef.name.c_str());
+        if (m_images.count(inputDef.name)) {
+            allImages[inputDef.name] = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
+            Logger::getInstance().logMessage("  - %s: %p", inputDef.name.c_str(), allImages[inputDef.name]);
+        } else {
+            if (!inputDef.optional) {
+                Logger::getInstance().logMessage("ERROR: Required input %s not found", inputDef.name.c_str());
+                return;
+            }
+            allImages[inputDef.name] = nullptr;
+            Logger::getInstance().logMessage("  - %s: null (optional)", inputDef.name.c_str());
+        }
+    }
+    
+    // Add output image
+    float* output = static_cast<float*>(_dstImg->getPixelData());
+    allImages["output"] = output;
+    Logger::getInstance().logMessage("  - output: %p", output);
+    
+    // FOR NOW: Extract specific parameters for existing kernel signature
+    // TODO: This will be generalized in Phase 4
+    float radius = allParams.count("radius") ? allParams["radius"].asFloat() : 5.0f;
+    int quality = allParams.count("quality") ? allParams["quality"].asInt() : 8;  
+    float maskStrength = allParams.count("maskStrength") ? allParams["maskStrength"].asFloat() : 1.0f;
+    
+    // FOR NOW: Extract specific images for existing kernel signature  
+    // TODO: This will be generalized in Phase 4
+    float* input = nullptr;
+    float* mask = nullptr;
+    
+    // Find first non-optional input as main source
+    for (const auto& inputDef : m_xmlDef.getInputs()) {
+        if (!inputDef.optional && allImages[inputDef.name]) {
+            input = allImages[inputDef.name];
+            Logger::getInstance().logMessage("Using '%s' as main input", inputDef.name.c_str());
             break;
         }
     }
     
-    // Find mask input (look for inputs with "mask" in the name)
+    // Find mask input
     for (const auto& inputDef : m_xmlDef.getInputs()) {
         std::string lowerName = inputDef.name;
         std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-        
-        if (lowerName.find("mask") != std::string::npos && m_images.count(inputDef.name)) {
-            mask = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
-            Logger::getInstance().logMessage("Found mask image: %s", inputDef.name.c_str());
+        if (lowerName.find("mask") != std::string::npos && allImages[inputDef.name]) {
+            mask = allImages[inputDef.name];
+            Logger::getInstance().logMessage("Using '%s' as mask input", inputDef.name.c_str());
             break;
         }
     }
@@ -170,7 +206,11 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
         return;
     }
     
-    // Call the appropriate kernel with REAL parameters
+    Logger::getInstance().logMessage("Calling kernel with extracted values:");
+    Logger::getInstance().logMessage("  Parameters: radius=%.2f, quality=%d, maskStrength=%.2f", radius, quality, maskStrength);
+    Logger::getInstance().logMessage("  Images: input=%p, mask=%p, output=%p", input, mask, output);
+    
+    // Call the appropriate kernel with extracted parameters
     if (platform == "cuda") {
 #ifndef __APPLE__
         RunCudaKernel(_pCudaStream, width, height, radius, quality, maskStrength, input, mask, output);
