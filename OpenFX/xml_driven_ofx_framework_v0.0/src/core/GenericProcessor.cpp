@@ -1,4 +1,5 @@
 #include "GenericProcessor.h"
+#include "KernelWrappers.h"
 #include "../../Logger.h"
 #include <cstring>
 #include "ParameterValue.h"
@@ -170,60 +171,33 @@ void GenericProcessor::callDynamicKernel(const std::string& platform) {
     allImages["output"] = output;
     Logger::getInstance().logMessage("  - output: %p", output);
     
-    // FOR NOW: Extract specific parameters for existing kernel signature
-    // TODO: This will be generalized in Phase 4
-    float radius = allParams.count("radius") ? allParams["radius"].asFloat() : 5.0f;
-    int quality = allParams.count("quality") ? allParams["quality"].asInt() : 8;  
-    float maskStrength = allParams.count("maskStrength") ? allParams["maskStrength"].asFloat() : 1.0f;
-    
-    // FOR NOW: Extract specific images for existing kernel signature  
-    // TODO: This will be generalized in Phase 4
-    float* input = nullptr;
-    float* mask = nullptr;
-    
-    // Find first non-optional input as main source
+    // Build border mode map from XML
+    Logger::getInstance().logMessage("Building border mode map from XML:");
+    std::map<std::string, std::string> borderModes;
     for (const auto& inputDef : m_xmlDef.getInputs()) {
-        if (!inputDef.optional && allImages[inputDef.name]) {
-            input = allImages[inputDef.name];
-            Logger::getInstance().logMessage("Using '%s' as main input", inputDef.name.c_str());
-            break;
-        }
+        borderModes[inputDef.name] = inputDef.borderMode;
+        Logger::getInstance().logMessage("  - %s: %s", inputDef.name.c_str(), inputDef.borderMode.c_str());
     }
     
-    // Find mask input
-    for (const auto& inputDef : m_xmlDef.getInputs()) {
-        std::string lowerName = inputDef.name;
-        std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), ::tolower);
-        if (lowerName.find("mask") != std::string::npos && allImages[inputDef.name]) {
-            mask = allImages[inputDef.name];
-            Logger::getInstance().logMessage("Using '%s' as mask input", inputDef.name.c_str());
-            break;
-        }
-    }
+    // Call the generalized kernel wrapper for each platform
+    Logger::getInstance().logMessage("Calling generalized kernel wrapper:");
+    Logger::getInstance().logMessage("  Parameters: %d items", (int)allParams.size());
+    Logger::getInstance().logMessage("  Images: %d items", (int)allImages.size());
+    Logger::getInstance().logMessage("  Border modes: %d items", (int)borderModes.size());
     
-    if (!input || !output) {
-        Logger::getInstance().logMessage("ERROR: Missing input (%p) or output (%p) image data", input, output);
-        return;
-    }
-    
-    Logger::getInstance().logMessage("Calling kernel with extracted values:");
-    Logger::getInstance().logMessage("  Parameters: radius=%.2f, quality=%d, maskStrength=%.2f", radius, quality, maskStrength);
-    Logger::getInstance().logMessage("  Images: input=%p, mask=%p, output=%p", input, mask, output);
-    
-    // Call the appropriate kernel with extracted parameters
     if (platform == "cuda") {
 #ifndef __APPLE__
-        RunCudaKernel(_pCudaStream, width, height, radius, quality, maskStrength, input, mask, output);
+        RunGenericCudaKernel(_pCudaStream, width, height, allParams, allImages, borderModes);
 #endif
     }
     else if (platform == "opencl") {
-        RunOpenCLKernel(_pOpenCLCmdQ, width, height, radius, quality, maskStrength, input, mask, output);
+        RunGenericOpenCLKernel(_pOpenCLCmdQ, width, height, allParams, allImages, borderModes);
     }
     else if (platform == "metal") {
 #ifdef __APPLE__
-        RunMetalKernel(_pMetalCmdQ, width, height, radius, quality, maskStrength, input, mask, output);
+        RunGenericMetalKernel(_pMetalCmdQ, width, height, allParams, allImages, borderModes);
 #endif
     }
     
-    Logger::getInstance().logMessage("Kernel execution completed");
+    Logger::getInstance().logMessage("Generalized kernel execution completed");
 }

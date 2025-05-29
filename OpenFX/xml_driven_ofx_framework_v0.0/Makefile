@@ -34,7 +34,7 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o 
+PLUGIN_MODULES = Logger.o PluginClips.o PluginParameters.o BlurPluginParameters.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o KernelWrappers.o
 
 # Main plugin objects
 PLUGIN_OBJS = BlurPlugin.o $(PLUGIN_MODULES)
@@ -97,8 +97,11 @@ XMLParameterManager.o: src/core/XMLParameterManager.cpp src/core/XMLParameterMan
 XMLInputManager.o: src/core/XMLInputManager.cpp src/core/XMLInputManager.h
 	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
 
+KernelWrappers.o: src/core/KernelWrappers.cpp src/core/KernelWrappers.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml
 
-
+KernelWrappers.o: src/core/KernelWrappers.cpp src/core/KernelWrappers.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I${CUDAPATH}/include
 
 pugixml.o: include/pugixml/pugixml.cpp
 	$(CXX) -c $< $(CXXFLAGS)
