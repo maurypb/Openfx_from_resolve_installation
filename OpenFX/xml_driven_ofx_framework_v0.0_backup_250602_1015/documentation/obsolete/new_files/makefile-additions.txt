@@ -1,0 +1,20 @@
+# Add these lines to your existing Makefile
+
+# Object files for the new classes
+PLUGIN_FRAMEWORK_OBJS = PluginClips.o PluginParameters.o BlurPluginParameters.o
+
+# Update the target to include the new object files
+BlurPlugin.ofx: BlurPlugin.o Logger.o $(PLUGIN_FRAMEWORK_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o ofxsCore.o ofxsImageEffect.o ofxsInteract.o ofxsLog.o ofxsMultiThread.o ofxsParams.o ofxsProperty.o ofxsPropertyValidation.o
+	$(CXX) $^ -o $@ $(LDFLAGS)
+	mkdir -p $(BUNDLE_DIR)
+	cp BlurPlugin.ofx $(BUNDLE_DIR)
+
+# Compilation rules for the new files
+PluginClips.o: PluginClips.cpp PluginClips.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+PluginParameters.o: PluginParameters.cpp PluginParameters.h
+	$(CXX) -c $< $(CXXFLAGS)
+
+BlurPluginParameters.o: BlurPluginParameters.cpp BlurPluginParameters.h
+	$(CXX) -c $< $(CXXFLAGS)

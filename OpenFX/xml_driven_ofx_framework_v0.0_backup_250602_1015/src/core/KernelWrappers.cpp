@@ -11,14 +11,6 @@
 #include <algorithm>
 #endif
 
-#ifdef __APPLE__
-#include <Metal/Metal.h>
-#endif
-
-#ifndef __APPLE__
-#include <CL/cl.h>
-#endif
-
 // Forward declaration for the actual __global__ kernel function
 // This will be loaded dynamically from the .cu file specified in XML
 #ifndef __APPLE__
@@ -161,7 +153,6 @@ void RunGenericOpenCLKernel(
     const std::map<std::string, float*>& images,
     const std::map<std::string, std::string>& borderModes
 ) {
-#ifndef __APPLE__
     Logger::getInstance().logMessage("RunGenericOpenCLKernel called");
     
     // Extract parameters for GaussianBlur kernel
@@ -179,97 +170,13 @@ void RunGenericOpenCLKernel(
         return;
     }
     
-    Logger::getInstance().logMessage("  Extracted parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
-                                   radius, quality, maskStrength);
+    // Call existing OpenCL function for now
+    // TODO: Move OpenCL setup code here like we did for CUDA
+    extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                               const float* p_Input, const float* p_Mask, float* p_Output);
     
-    // ALL THE OPENCL SETUP CODE MOVED HERE FROM OpenCLKernel.cpp:
-    
-    cl_int error;
-    cl_command_queue clCmdQueue = static_cast<cl_command_queue>(cmdQueue);
-    
-    // Get context and device from command queue
-    cl_context clContext;
-    cl_device_id deviceId;
-    error = clGetCommandQueueInfo(clCmdQueue, CL_QUEUE_CONTEXT, sizeof(cl_context), &clContext, NULL);
-    if (error != CL_SUCCESS) {
-        Logger::getInstance().logMessage("ERROR: Unable to get OpenCL context");
-        return;
-    }
-    
-    error = clGetCommandQueueInfo(clCmdQueue, CL_QUEUE_DEVICE, sizeof(cl_device_id), &deviceId, NULL);
-    if (error != CL_SUCCESS) {
-        Logger::getInstance().logMessage("ERROR: Unable to get OpenCL device");
-        return;
-    }
-    
-    // Create image format description
-    cl_image_format format;
-    format.image_channel_order = CL_RGBA;
-    format.image_channel_data_type = CL_FLOAT;
-    
-    // Create image description
-    cl_image_desc desc;
-    memset(&desc, 0, sizeof(desc));
-    desc.image_type = CL_MEM_OBJECT_IMAGE2D;
-    desc.image_width = width;
-    desc.image_height = height;
-    desc.image_row_pitch = 0;
-    desc.image_array_size = 1;
-    
-    // Create input image
-    cl_mem inputImage = clCreateImage(clContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-                                     &format, &desc, (void*)input, &error);
-    if (error != CL_SUCCESS) {
-        Logger::getInstance().logMessage("ERROR: Unable to create OpenCL input image");
-        return;
-    }
-    
-    // Create mask image (if available)
-    cl_mem maskImage = NULL;
-    if (mask) {
-        maskImage = clCreateImage(clContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-                                 &format, &desc, (void*)mask, &error);
-        if (error != CL_SUCCESS) {
-            Logger::getInstance().logMessage("ERROR: Unable to create OpenCL mask image");
-            clReleaseMemObject(inputImage);
-            return;
-        }
-    } else {
-        // Create a dummy mask if none provided
-        float* dummyMask = new float[width * height * 4]();
-        maskImage = clCreateImage(clContext, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, 
-                                 &format, &desc, dummyMask, &error);
-        delete[] dummyMask;
-        if (error != CL_SUCCESS) {
-            Logger::getInstance().logMessage("ERROR: Unable to create OpenCL dummy mask image");
-            clReleaseMemObject(inputImage);
-            return;
-        }
-    }
-    
-    // Create output buffer
-    cl_mem outputBuffer = clCreateBuffer(clContext, CL_MEM_WRITE_ONLY, 
-                                        width * height * 4 * sizeof(float), NULL, &error);
-    if (error != CL_SUCCESS) {
-        Logger::getInstance().logMessage("ERROR: Unable to create OpenCL output buffer");
-        clReleaseMemObject(inputImage);
-        clReleaseMemObject(maskImage);
-        return;
-    }
-    
-    // NOTE: Kernel compilation would go here in a complete implementation
-    // For now, we log that this is where it would happen
-    Logger::getInstance().logMessage("  OpenCL kernel setup completed (kernel compilation would happen here)");
-    Logger::getInstance().logMessage("  Parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
-                                   radius, quality, maskStrength);
-    
-    // Cleanup
-    clReleaseMemObject(inputImage);
-    clReleaseMemObject(maskImage);
-    clReleaseMemObject(outputBuffer);
-    
-    Logger::getInstance().logMessage("  OpenCL processing completed");
-#endif
+    RunOpenCLKernel(cmdQueue, width, height, radius, quality, maskStrength, input, mask, output);
+    Logger::getInstance().logMessage("  OpenCL kernel completed");
 }
 
 void RunGenericMetalKernel(
@@ -298,49 +205,12 @@ void RunGenericMetalKernel(
         return;
     }
     
-    Logger::getInstance().logMessage("  Extracted parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
-                                   radius, quality, maskStrength);
+    // Call existing Metal function for now  
+    // TODO: Move Metal setup code here like we did for CUDA
+    extern void RunMetalKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                              const float* p_Input, const float* p_Mask, float* p_Output);
     
-    // ALL THE METAL SETUP CODE MOVED HERE FROM MetalKernel.mm:
-    
-    id<MTLCommandQueue> metalQueue = static_cast<id<MTLCommandQueue>>(cmdQueue);
-    id<MTLDevice> device = metalQueue.device;
-    
-    // Create textures for input and mask
-    MTLTextureDescriptor *textureDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatRGBA32Float
-                                                                                                 width:width
-                                                                                                height:height
-                                                                                             mipmapped:NO];
-    textureDescriptor.usage = MTLTextureUsageShaderRead;
-    
-    // Input texture
-    id<MTLTexture> inputTexture = [device newTextureWithDescriptor:textureDescriptor];
-    MTLRegion region = MTLRegionMake2D(0, 0, width, height);
-    [inputTexture replaceRegion:region mipmapLevel:0 withBytes:input bytesPerRow:width * 4 * sizeof(float)];
-    
-    // Mask texture (if available)
-    id<MTLTexture> maskTexture = nil;
-    if (mask) {
-        maskTexture = [device newTextureWithDescriptor:textureDescriptor];
-        [maskTexture replaceRegion:region mipmapLevel:0 withBytes:mask bytesPerRow:width * 4 * sizeof(float)];
-    } else {
-        // Create a dummy mask texture with all zeros if no mask provided
-        float* dummyMask = new float[width * height * 4]();
-        maskTexture = [device newTextureWithDescriptor:textureDescriptor];
-        [maskTexture replaceRegion:region mipmapLevel:0 withBytes:dummyMask bytesPerRow:width * 4 * sizeof(float)];
-        delete[] dummyMask;
-    }
-    
-    // NOTE: Pipeline state and kernel compilation would go here in a complete implementation
-    // For now, we log that this is where it would happen
-    Logger::getInstance().logMessage("  Metal kernel setup completed (pipeline compilation would happen here)");
-    Logger::getInstance().logMessage("  Parameters: radius=%.2f, quality=%d, maskStrength=%.2f", 
-                                   radius, quality, maskStrength);
-    
-    // Release textures
-    [inputTexture release];
-    [maskTexture release];
-    
-    Logger::getInstance().logMessage("  Metal processing completed");
+    RunMetalKernel(cmdQueue, width, height, radius, quality, maskStrength, input, mask, output);
+    Logger::getInstance().logMessage("  Metal kernel completed");
 #endif
 }

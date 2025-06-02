@@ -1,0 +1,274 @@
+# How to Modify the OFX Plugin for New Kernels
+
+This guide walks through the steps needed to modify the OFX plugin to use new GPU kernels while maintaining the same architecture.
+
+## Prerequisites
+
+- New kernel files ready with the same filenames:
+  - `CudaKernel.cu` (NVIDIA CUDA)
+  - `MetalKernel.mm` (Apple Metal)
+  - `OpenCLKernel.cpp` (OpenCL)
+
+## 1. Define New Parameters
+
+If your parameter names have changed, update `BlurPluginParameters.h`:
+
+```cpp
+// File: BlurPluginParameters.h
+class BlurPluginParameters {
+public:
+    // Update these constants with your new parameter names
+    static const char* const PARAM_RADIUS;       // Change if needed
+    static const char* const PARAM_QUALITY;      // Change if needed
+    static const char* const PARAM_MASK_STRENGTH; // Change if needed
+    
+    // Add any new parameters here
+    static const char* const PARAM_NEW_PARAMETER;
+    
+    // Method declarations (no changes needed)
+    static void defineParameters(OFX::ImageEffectDescriptor& p_Desc, OFX::PageParamDescriptor* page = nullptr);
+    static void defineAdvancedParameters(OFX::ImageEffectDescriptor& p_Desc, OFX::PageParamDescriptor* page = nullptr);
+};
+```
+
+## 2. Update Parameter Implementation
+
+Modify `BlurPluginParameters.cpp` to implement your new parameters:
+
+```cpp
+// File: BlurPluginParameters.cpp
+
+// Update these definitions to match your new parameter names
+const char* const BlurPluginParameters::PARAM_RADIUS = "radius";         // Change if needed
+const char* const BlurPluginParameters::PARAM_QUALITY = "quality";       // Change if needed
+const char* const BlurPluginParameters::PARAM_MASK_STRENGTH = "maskStrength"; // Change if needed
+
+// Add new parameter constants
+const char* const BlurPluginParameters::PARAM_NEW_PARAMETER = "newParameter";
+
+void BlurPluginParameters::defineParameters(OFX::ImageEffectDescriptor& p_Desc, OFX::PageParamDescriptor* page) {
+    // If page is not provided, create one
+    OFX::PageParamDescriptor* localPage = page;
+    if (!localPage) {
+        localPage = PluginParameters::definePage(p_Desc, PluginParameters::PAGE_MAIN);
+    }
+    
+    // Keep existing parameters that you're still using
+    OFX::DoubleParamDescriptor* radiusParam = PluginParameters::defineDoubleParam(
+        p_Desc,
+        PARAM_RADIUS,
+        "Radius",
+        "Blur radius in pixels",
+        5.0,  // default
+        0.0,  // min
+        100.0, // max
+        0.0,  // display min
+        50.0  // display max
+    );
+    PluginParameters::addParamToPage(localPage, *radiusParam);
+
+    // Add your new parameters here
+    OFX::DoubleParamDescriptor* newParam = PluginParameters::defineDoubleParam(
+        p_Desc,
+        PARAM_NEW_PARAMETER,
+        "New Parameter",
+        "Description of new parameter",
+        1.0,   // default
+        0.0,   // min
+        10.0,  // max
+        0.0,   // display min
+        5.0    // display max
+    );
+    PluginParameters::addParamToPage(localPage, *newParam);
+    
+    // Continue with other parameters...
+}
+```
+
+## 3. Update BlurPlugin Class
+
+Modify `BlurPlugin.h` to add member variables for your new parameters:
+
+```cpp
+// File: BlurPlugin.h
+
+class BlurPlugin : public OFX::ImageEffect {
+private:
+    // Existing parameters
+    OFX::DoubleParam* m_Radius;
+    OFX::IntParam* m_Quality;
+    OFX::DoubleParam* m_MaskStrength;
+    
+    // Add new parameters
+    OFX::DoubleParam* m_NewParameter;
+    
+    // Rest of the class definition remains the same...
+};
+```
+
+## 4. Update BlurPlugin Implementation
+
+Modify `BlurPlugin.cpp` to fetch the new parameters and pass them to the kernel:
+
+```cpp
+// File: BlurPlugin.cpp
+
+BlurPlugin::BlurPlugin(OfxImageEffectHandle p_Handle)
+    : ImageEffect(p_Handle)
+{
+    // Fetch clips
+    m_DstClip = fetchClip(PluginClips::CLIP_OUTPUT);
+    m_SrcClip = fetchClip(PluginClips::CLIP_SOURCE);
+    m_MaskClip = fetchClip(PluginClips::CLIP_MASK);
+
+    // Fetch existing parameters
+    m_Radius = fetchDoubleParam(BlurPluginParameters::PARAM_RADIUS);
+    m_Quality = fetchIntParam(BlurPluginParameters::PARAM_QUALITY);
+    m_MaskStrength = fetchDoubleParam(BlurPluginParameters::PARAM_MASK_STRENGTH);
+    
+    // Fetch new parameters
+    m_NewParameter = fetchDoubleParam(BlurPluginParameters::PARAM_NEW_PARAMETER);
+
+    // Log instance creation
+    Logger::getInstance().logMessage("BlurPlugin instance created");
+}
+
+void BlurPlugin::setupAndProcess(ImageBlurrer &p_ImageBlurrer, const OFX::RenderArguments& p_Args)
+{
+    // Get the images... (keep this part unchanged)
+    
+    // Get parameter values at the current time
+    double radius = m_Radius->getValueAtTime(p_Args.time);
+    int quality = m_Quality->getValueAtTime(p_Args.time);
+    double maskStrength = m_MaskStrength->getValueAtTime(p_Args.time);
+    double newParameter = m_NewParameter->getValueAtTime(p_Args.time);
+
+    // Set the parameters on the processor
+    p_ImageBlurrer.setParams(radius, quality, maskStrength, newParameter);
+    
+    // Call the base class process member
+    p_ImageBlurrer.process();
+}
+```
+
+## 5. Update ImageBlurrer Class 
+
+Modify the ImageBlurrer class to handle the new parameters:
+
+```cpp
+// File: BlurPlugin.cpp 
+
+// Update the setParams method to accept new parameters
+void ImageBlurrer::setParams(float p_Radius, int p_Quality, float p_MaskStrength, float p_NewParameter)
+{
+    _radius = p_Radius;
+    _quality = p_Quality;
+    _maskStrength = p_MaskStrength;
+    _newParameter = p_NewParameter;
+}
+
+// Add a member variable declaration in the ImageBlurrer class:
+float _newParameter;
+```
+
+## 6. Update Kernel Function Calls
+
+Update the calls to the external kernel functions to pass the new parameters:
+
+```cpp
+// File: BlurPlugin.cpp
+
+// For CUDA
+void ImageBlurrer::processImagesCUDA()
+{
+#ifndef __APPLE__
+    const OfxRectI& bounds = _srcImg->getBounds();
+    const int width = bounds.x2 - bounds.x1;
+    const int height = bounds.y2 - bounds.y1;
+
+    float* input = static_cast<float*>(_srcImg->getPixelData());
+    float* output = static_cast<float*>(_dstImg->getPixelData());
+    
+    // Get mask data if available
+    float* mask = nullptr;
+    if (_maskImg) {
+        mask = static_cast<float*>(_maskImg->getPixelData());
+    }
+    
+    // Update the function signature to match your new kernel
+    RunCudaKernel(_pCudaStream, width, height, _radius, _quality, _maskStrength, _newParameter, input, mask, output);
+#endif
+}
+
+// Similarly update processImagesOpenCL() and processImagesMetal()
+```
+
+## 7. Update Kernel Function Declarations
+
+Update the external function declarations to match your new kernels:
+
+```cpp
+// File: BlurPlugin.cpp
+
+// Update these declarations at the top of the file:
+#ifndef __APPLE__
+extern void RunCudaKernel(void* p_Stream, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                         float p_NewParameter, const float* p_Input, const float* p_Mask, float* p_Output);
+#endif
+
+#ifdef __APPLE__
+extern void RunMetalKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                          float p_NewParameter, const float* p_Input, const float* p_Mask, float* p_Output);
+#endif
+
+extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                           float p_NewParameter, const float* p_Input, const float* p_Mask, float* p_Output);
+```
+
+## 8. Update isIdentity Method (If Needed)
+
+If your new parameters affect when the plugin is considered an identity operation (no effect), update the isIdentity method:
+
+```cpp
+// File: BlurPlugin.cpp
+
+bool BlurPlugin::isIdentity(const OFX::IsIdentityArguments& p_Args, OFX::Clip*& p_IdentityClip, double& p_IdentityTime)
+{
+    double radius = m_Radius->getValueAtTime(p_Args.time);
+    double newParameter = m_NewParameter->getValueAtTime(p_Args.time);
+
+    // If both radius and new parameter are zero, the effect is an identity
+    if (radius <= 0.0 && newParameter <= 0.0)
+    {
+        p_IdentityClip = m_SrcClip;
+        p_IdentityTime = p_Args.time;
+        return true;
+    }
+
+    return false;
+}
+```
+
+## 9. Build and Test
+
+After making these changes:
+
+1. Run `make clean` to remove old build artifacts
+2. Run `make` to build the plugin
+3. Run `sudo make install` to install to the system plugin directory
+4. Test in your OFX host application
+
+## Checklist for Validation
+
+- [ ] All parameters are correctly defined and fetched
+- [ ] New kernel functions receive all the parameters they need
+- [ ] Plugin builds without errors
+- [ ] Plugin loads in the OFX host
+- [ ] Parameters appear in the UI with correct names and ranges
+- [ ] Effect renders correctly with different parameter combinations
+
+## Notes
+
+- Keep parameter names consistent across all files
+- If your new kernels require different parameters, ensure they're properly passed through
+- Update the plugin description if its functionality has changed significantly

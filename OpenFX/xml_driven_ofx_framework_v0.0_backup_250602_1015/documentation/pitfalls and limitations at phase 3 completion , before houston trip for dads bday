@@ -1,0 +1,228 @@
+# Pitfalls and Limitations of the XML-Driven OFX Framework
+
+## Introduction
+
+While the XML-driven OFX framework successfully achieves its core goal of simplifying effect creation, like any system it has inherent limitations and potential pitfalls. This document catalogs the known issues, constraints, and areas where developers might encounter difficulties when using or extending the framework.
+
+## Architectural Limitations
+
+### Static XML File Paths
+**Issue:** XML file paths are hardcoded in the plugin registration code.
+```cpp
+std::string xmlPath = "/absolute/path/to/TestBlurV2.xml";
+```
+**Impact:** 
+- Effects are tied to specific file system locations
+- Moving or distributing plugins requires code changes
+- No dynamic discovery of new effects
+- Deployment becomes fragile across different systems
+
+**Workaround:** Copy XML files to known locations relative to the plugin binary.
+
+### Single Effect Per Plugin Binary
+**Issue:** Currently one plugin binary (`BlurPlugin.ofx`) contains one hardcoded effect.
+**Impact:**
+- Creating multiple effects requires building separate plugin binaries
+- Cannot bundle related effects together
+- Plugin management becomes unwieldy with many effects
+
+### Platform-Specific Compilation Requirements
+**Issue:** Framework requires platform-specific build chains.
+**Impact:**
+- CUDA: Requires NVCC compiler and CUDA toolkit installation
+- Complex Makefile with platform-specific paths and flags
+- Cross-platform distribution requires multiple build environments
+- Development setup barrier for effect authors
+
+## Memory Management Pitfalls
+
+### Borrowed Pointer Pattern Fragility
+**Issue:** GenericProcessor receives raw pointers that must remain valid during processing.
+```cpp
+processor.setImages(images);  // images map contains raw pointers
+processor.process();          // Pointers must stay valid here
+// images go out of scope - potential dangling pointers
+```
+**Risk:** Dangling pointers if image lifetime management is incorrect.
+**Mitigation:** Clear ownership patterns and careful scope management in GenericEffect.
+
+### Static Object Initialization Conflicts
+**Issue:** Multiple GenericEffectFactory objects can interfere with each other.
+**Symptoms:** Second factory creation hangs or crashes during plugin loading.
+**Root Cause:** XML parsing libraries may have global state that conflicts.
+**Workaround:** Avoid creating multiple factories that parse the same XML file.
+
+### GPU Memory Cleanup Dependencies
+**Issue:** CUDA resources must be cleaned up in specific order.
+**Risk:** Resource leaks if kernel execution fails partway through setup.
+**Impact:** GPU memory exhaustion over time, especially during development/testing.
+
+## XML Parsing Limitations
+
+### Schema Validation Gaps
+**Issue:** XML validation relies on runtime parsing rather than schema validation.
+**Impact:**
+- Invalid XML discovered only when effect loads
+- Cryptic error messages for malformed XML
+- No validation tools for effect authors
+- Runtime crashes possible with malformed XML
+
+### Limited Error Context
+**Issue:** XML parsing errors often lack specific location information.
+**Example:** "Parameter validation failed" without indicating which parameter or line number.
+**Impact:** Difficult debugging for effect authors.
+
+### Hardcoded XML Structure Assumptions
+**Issue:** Framework assumes specific XML element relationships.
+**Risk:** Future XML schema changes could break existing effects.
+**Example:** Parameter extraction assumes specific nesting and attribute names.
+
+## OpenFX Integration Complexities
+
+### Host-Specific Behavior Variations
+**Issue:** Different OFX hosts implement standards differently.
+**Examples:**
+- Parameter UI rendering varies (sliders vs. numeric fields)
+- Clip handling differences between hosts
+- Border mode property support inconsistent
+**Impact:** Effects may work in one host but fail in another.
+
+### Parameter Type Mapping Constraints
+**Issue:** XML parameter types must map to specific OFX parameter types.
+**Limitations:**
+- Limited to OFX 1.4 parameter types
+- Complex parameter types (curves, colors) have limited customization
+- No custom parameter types possible
+**Workaround:** Use closest OFX type and handle differences in kernel code.
+
+### Threading and Render Context Issues
+**Issue:** OFX threading model is complex and varies by host.
+**Risks:**
+- Race conditions in multi-threaded rendering
+- GPU context switching between threads
+- Parameter access thread safety
+**Mitigation:** Framework handles this, but limits future optimization opportunities.
+
+## Development and Debugging Challenges
+
+### Limited Debugging Infrastructure
+**Issue:** Debugging GPU kernels within the OFX framework is difficult.
+**Challenges:**
+- No interactive debugging of kernel code
+- Limited logging from GPU code
+- Error messages often generic
+- Crash debugging requires external tools
+
+### Build System Complexity
+**Issue:** Makefile has many interdependent rules and platform-specific code.
+**Problems:**
+- Compilation order dependencies not obvious
+- Include path management complex
+- Easy to break with small changes
+- Difficult for newcomers to understand
+
+### Logging System Limitations
+**Issue:** Current logging to `/tmp/blur_plugin_log.txt` is simplistic.
+**Problems:**
+- Single global log file
+- No log levels or filtering
+- Performance impact in production
+- Log rotation not implemented
+- Not suitable for production deployment
+
+## Performance Considerations
+
+### Dynamic Parameter Extraction Overhead
+**Issue:** Converting XML parameter maps to kernel parameters requires runtime map lookups.
+```cpp
+float radius = allParams.count("radius") ? allParams["radius"].asFloat() : 5.0f;
+```
+**Impact:** Small performance penalty compared to direct member access.
+**Scale:** Negligible for typical parameter counts, but could accumulate.
+
+### Memory Copy Overhead
+**Issue:** GPU texture setup requires multiple memory copies.
+**Process:** CPU → CUDA array → Texture object → Kernel
+**Impact:** Bandwidth-limited operations may see performance impact.
+**Mitigation:** Mostly unavoidable given OFX architecture.
+
+### XML Parsing During Plugin Load
+**Issue:** XML parsing happens during plugin registration.
+**Impact:** Slower host startup with many XML-based plugins.
+**Risk:** Host timeout during plugin discovery.
+
+## Security and Robustness Concerns
+
+### File System Dependencies
+**Issue:** Framework assumes file system access for XML and kernel files.
+**Risks:**
+- XML files could be modified by other processes
+- Kernel files could be replaced
+- File permissions could prevent access
+**Impact:** Plugin could fail at runtime in production environments.
+
+### Input Validation Gaps
+**Issue:** Limited validation of XML parameter values and image data.
+**Risks:**
+- Malformed XML could cause crashes
+- Invalid parameter ranges not always caught
+- GPU kernel could receive invalid data
+**Mitigation:** Add more comprehensive validation layers.
+
+### Error Propagation Complexity
+**Issue:** Errors can originate from XML parsing, OFX layer, or GPU code.
+**Challenge:** Determining root cause of failures requires understanding all layers.
+**Impact:** Difficult troubleshooting for end users.
+
+## Maintenance and Evolution Pitfalls
+
+### Tight Coupling to XML Schema
+**Issue:** Framework code is tightly coupled to current XML structure.
+**Risk:** Schema changes require framework code changes.
+**Examples:** Adding new parameter types, changing UI organization.
+**Impact:** Framework evolution is constrained by backward compatibility needs.
+
+### GPU API Evolution
+**Issue:** CUDA/OpenCL/Metal APIs evolve, potentially breaking kernel code.
+**Examples:** Deprecated texture API calls, changed memory models.
+**Risk:** Framework could become incompatible with newer GPU drivers.
+**Mitigation:** Requires ongoing maintenance and testing.
+
+### OFX Standard Evolution
+**Issue:** OFX standard continues to evolve (currently at 1.4, with newer versions).
+**Challenge:** Framework is tied to OFX 1.4 assumptions and APIs.
+**Impact:** May miss newer OFX features and optimizations.
+
+## Recommended Mitigation Strategies
+
+### For Effect Authors
+1. **Always validate XML** against examples before testing
+2. **Use absolute paths** during development, relative paths for distribution
+3. **Test effects in multiple hosts** to verify compatibility
+4. **Keep kernel code simple** to avoid GPU-specific issues
+5. **Use framework logging** extensively during development
+
+### For Framework Developers
+1. **Implement comprehensive XML schema validation**
+2. **Add dynamic XML file discovery**
+3. **Improve error messages with context information**
+4. **Create automated testing for multiple OFX hosts**
+5. **Add production-ready logging system**
+6. **Document platform-specific build requirements clearly**
+
+### For Production Deployment
+1. **Bundle XML files with plugin binaries**
+2. **Test thoroughly in target host applications**
+3. **Implement graceful fallbacks for missing features**
+4. **Monitor GPU memory usage over time**
+5. **Have rollback plan for problematic effects**
+
+## Conclusion
+
+The XML-driven OFX framework successfully achieves its design goals while introducing manageable limitations. Most pitfalls are inherent to the complexity of bridging XML configuration, OFX standards, and GPU computing. Understanding these limitations helps developers make informed decisions about when and how to use the framework effectively.
+
+The framework represents a significant improvement over manual OFX plugin development for the target use case (single-kernel image processing effects), despite these limitations. Many constraints will be addressed in future phases of development.
+
+---
+
+*Document reflects framework status as of Phase 3 completion. Limitations may be addressed in future development phases.*

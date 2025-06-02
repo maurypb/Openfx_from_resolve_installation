@@ -19,23 +19,17 @@
         <parameter name="maskStrength" type="double" default="1.0" min="0.0" max="1.0" 
                 displayMin="0.0" displayMax="1.0" 
                 label="Mask Strength" hint="How strongly the mask affects the blur radius" />
-        <parameter name="brightness" type="double" default="1.0" min="0.0" max="2.0" 
-                label="Brightness" hint="Test parameter - does not actually work." />
-
-
-
     </parameters>
         
     <ui>
-        <page name="Basic Controls">
-            <parameter>radius</parameter>
-            <parameter>quality</parameter>
-        </page>
-        <page name="Masking">
-            <parameter>maskStrength</parameter>
-        </page>
-        <page name="Test Parameters">
-            <parameter>brightness</parameter>
+        <page name="Main">
+            <column name="Basic">
+                <parameter>radius</parameter>
+                <parameter>quality</parameter>
+            </column>
+            <column name="Masking">
+                <parameter>maskStrength</parameter>
+            </column>
         </page>
     </ui>
     
