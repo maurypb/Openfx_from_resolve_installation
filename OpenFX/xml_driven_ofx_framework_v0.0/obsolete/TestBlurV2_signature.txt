@@ -1,0 +1,14 @@
+// Generated from TestBlurV2.xml
+__global__ void TestBlurV2Kernel(
+    int width,
+    int height,
+    cudaTextureObject_t inputTex,
+    cudaTextureObject_t maskTex,
+    float* output,
+    bool maskPresent,
+    // Auto-generated from XML parameters:
+    float brightness,  // from <parameter name="brightness" type="double">
+    float radius,  // from <parameter name="radius" type="double">
+    int quality,  // from <parameter name="quality" type="int">
+    float maskStrength  // from <parameter name="maskStrength" type="double">
+);

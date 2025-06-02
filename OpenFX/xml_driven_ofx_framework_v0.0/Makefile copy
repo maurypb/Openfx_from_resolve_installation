@@ -1,13 +1,4 @@
-# Modified Makefile for the modular OFX plugin with new directory structure
-
-# Directory structure variables
-SRC_DIR = src
-CORE_DIR = $(SRC_DIR)/core
-TESTS_DIR = $(SRC_DIR)/tests
-EFFECTS_DIR = effects
-TOOLS_DIR = tools
-BUILD_DIR = build
-OBJ_DIR = $(BUILD_DIR)/obj
+# Modified Makefile for the modular OFX plugin
 
 UNAME_SYSTEM := $(shell uname -s)
 
@@ -21,9 +12,7 @@ ifeq ($(UNAME_SYSTEM), Linux)
 	NVCCFLAGS = --compiler-options="-fPIC"
 	LDFLAGS = -shared -fvisibility=hidden -L${CUDAPATH}/lib64 -lcuda -lcudart_static
 	BUNDLE_DIR = BlurPlugin.ofx.bundle/Contents/Linux-x86-64/
-	CUDA_OBJ = $(EFFECTS_DIR)/TestBlurV2_cuda.o
-	OPENCL_OBJ = $(EFFECTS_DIR)/TestBlurV2_opencl.o
-	METAL_OBJ = 
+	CUDA_OBJ = CudaKernel.o
 	INSTALL_DIR = /usr/OFX/Plugins
 else ifeq ($(UNAME_SYSTEM), Darwin)
 	ARCH_FLAGS = -arch arm64 -arch x86_64
@@ -31,9 +20,7 @@ else ifeq ($(UNAME_SYSTEM), Darwin)
 	LDFLAGS = -bundle -fvisibility=hidden -F/Library/Frameworks -framework OpenCL -framework Metal -framework AppKit
 	LDFLAGS += ${ARCH_FLAGS}
 	BUNDLE_DIR = BlurPlugin.ofx.bundle/Contents/MacOS/
-	CUDA_OBJ = $(EFFECTS_DIR)/TestBlurV2_cuda.o
-	OPENCL_OBJ = $(EFFECTS_DIR)/TestBlurV2_opencl.o
-	METAL_OBJ = $(EFFECTS_DIR)/TestBlurV2_metal.o
+	METAL_OBJ = MetalKernel.o
 	INSTALL_DIR = /Library/OFX/Plugins
 else
 	# Windows
@@ -42,14 +29,12 @@ else
 	NVCCFLAGS = --compiler-options="/MD"
 	LDFLAGS = /DLL /SUBSYSTEM:WINDOWS
 	BUNDLE_DIR = BlurPlugin.ofx.bundle/Win64/
-	CUDA_OBJ = $(EFFECTS_DIR)/TestBlurV2_cuda.obj
-	OPENCL_OBJ = $(EFFECTS_DIR)/TestBlurV2_opencl.obj
-	METAL_OBJ = 
+	CUDA_OBJ = CudaKernel.obj
 	INSTALL_DIR = "C:/Program Files/Common Files/OFX/Plugins"
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o 
+PLUGIN_MODULES = Logger.o  GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o 
 
 # Main plugin objects
 PLUGIN_OBJS = GenericPlugin.o $(PLUGIN_MODULES)
@@ -58,8 +43,7 @@ PLUGIN_OBJS = GenericPlugin.o $(PLUGIN_MODULES)
 OFX_SUPPORT_OBJS = ofxsCore.o ofxsImageEffect.o ofxsInteract.o ofxsLog.o ofxsMultiThread.o ofxsParams.o ofxsProperty.o ofxsPropertyValidation.o
 
 # Main target
-#NOTE - DELETED CL AND METAL FOR NOW: $(METAL_OBJ) $(OPENCL_OBJ)
-BlurPlugin.ofx: $(PLUGIN_OBJS) $(CUDA_OBJ)  $(OFX_SUPPORT_OBJS)
+BlurPlugin.ofx: $(PLUGIN_OBJS) ${CUDA_OBJ} $(METAL_OBJ) OpenCLKernel.o $(OFX_SUPPORT_OBJS)
 	$(CXX) $^ -o $@ $(LDFLAGS)
 	mkdir -p $(BUNDLE_DIR)
 	cp BlurPlugin.ofx $(BUNDLE_DIR)
@@ -89,49 +73,56 @@ BlurPlugin.ofx: $(PLUGIN_OBJS) $(CUDA_OBJ)  $(OFX_SUPPORT_OBJS)
 Logger.o: Logger.cpp Logger.h
 	$(CXX) -c $< $(CXXFLAGS)
 
-# Core framework components
-GenericEffectFactory.o: $(CORE_DIR)/GenericEffectFactory.cpp $(CORE_DIR)/GenericEffectFactory.h
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
 
-XMLEffectDefinition.o: $(CORE_DIR)/XMLEffectDefinition.cpp $(CORE_DIR)/XMLEffectDefinition.h
+
+# NEW COMPILATION RULES - THESE WERE MISSING
+GenericEffectFactory.o: src/core/GenericEffectFactory.cpp src/core/GenericEffectFactory.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
+
+XMLEffectDefinition.o: src/core/XMLEffectDefinition.cpp src/core/XMLEffectDefinition.h
 	$(CXX) -c $< $(CXXFLAGS) -I./include/pugixml -I./
 
-XMLParameterManager.o: $(CORE_DIR)/XMLParameterManager.cpp $(CORE_DIR)/XMLParameterManager.h
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
 
-XMLInputManager.o: $(CORE_DIR)/XMLInputManager.cpp $(CORE_DIR)/XMLInputManager.h
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+# MISSING COMPILATION RULES ADDED
+XMLParameterManager.o: src/core/XMLParameterManager.cpp src/core/XMLParameterManager.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
-KernelWrappers.o: $(CORE_DIR)/KernelWrappers.cpp $(CORE_DIR)/KernelWrappers.h
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./ -I${CUDAPATH}/include
+XMLInputManager.o: src/core/XMLInputManager.cpp src/core/XMLInputManager.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
+
+KernelWrappers.o: src/core/KernelWrappers.cpp src/core/KernelWrappers.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./ -I${CUDAPATH}/include
+
 
 pugixml.o: include/pugixml/pugixml.cpp
 	$(CXX) -c $< $(CXXFLAGS)
 
-GenericEffect.o: $(CORE_DIR)/GenericEffect.cpp $(CORE_DIR)/GenericEffect.h
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+GenericEffect.o: src/core/GenericEffect.cpp src/core/GenericEffect.h
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
-GenericProcessor.o: $(CORE_DIR)/GenericProcessor.cpp
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+GenericProcessor.o: src/core/GenericProcessor.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
-ParameterValue.o: $(CORE_DIR)/ParameterValue.cpp
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+ParameterValue.o: src/core/ParameterValue.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
+
+
 
 # Main plugin compilation
-GenericPlugin.o: $(CORE_DIR)/GenericPlugin.cpp
-	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+GenericPlugin.o: src/core/GenericPlugin.cpp
+	$(CXX) -c $< $(CXXFLAGS) -I./src -I./include/pugixml -I./
 
-# Effect kernel compilation - now in effects directory
-$(EFFECTS_DIR)/TestBlurV2_cuda.o: $(EFFECTS_DIR)/TestBlurV2.cu
-	${NVCC} -c $< $(NVCCFLAGS) -o $@
+# CUDA kernel compilation
+CudaKernel.o: CudaKernel.cu
+	${NVCC} -c $< $(NVCCFLAGS)
 
 # Metal kernel compilation (macOS only)
-$(EFFECTS_DIR)/TestBlurV2_metal.o: $(EFFECTS_DIR)/TestBlurV2.metal
-	$(CXX) -c $< $(CXXFLAGS) -o $@
+MetalKernel.o: MetalKernel.mm
+	$(CXX) -c $< $(CXXFLAGS)
 
-# OpenCL kernel compilation  
-$(EFFECTS_DIR)/TestBlurV2_opencl.o: $(EFFECTS_DIR)/TestBlurV2.cl
-	$(CXX) -c $< $(CXXFLAGS) -o $@
+# OpenCL kernel compilation
+OpenCLKernel.o: OpenCLKernel.cpp
+	$(CXX) -c $< $(CXXFLAGS)
 
 # OpenFX support library compilation
 %.o: ../Support/Library/%.cpp
@@ -140,7 +131,6 @@ $(EFFECTS_DIR)/TestBlurV2_opencl.o: $(EFFECTS_DIR)/TestBlurV2.cl
 # Clean up build artifacts
 clean:
 	rm -f *.o *.obj *.ofx
-	rm -f $(EFFECTS_DIR)/*.o $(EFFECTS_DIR)/*.obj
 	rm -fr BlurPlugin.ofx.bundle
 
 # Install the plugin to the system-wide OFX plugin directory

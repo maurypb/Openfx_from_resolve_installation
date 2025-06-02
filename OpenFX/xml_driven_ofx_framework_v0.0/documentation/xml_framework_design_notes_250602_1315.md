@@ -1,6 +1,18 @@
 # XML Framework Design Notes
 *Key insights and improvements discovered during BlurPlugin.cpp analysis*
 
+## UPDATE (June 2025): Implementation Status
+Most insights from this analysis have been successfully implemented:
+- ✅ Dynamic parameter maps (ParameterValue system)
+- ✅ Arbitrary input count support (XML-driven clips)
+- ✅ Simplified kernel files (setup moved to framework)
+- ✅ API naming improvements (descriptive parameter names)
+- 📋 Pixel format detection (Phase 4A priority)
+- 📋 CUDA boilerplate elimination (Phase 4C enhancement)
+
+*Original analysis below remains valid for understanding design decisions*
+
+
 ## API Design & Naming
 - **Current Issue**: Generic names like `p_Args` don't indicate content
 - **Framework Solution**: Use descriptive names like `RenderContext`, `FrameRenderArgs`

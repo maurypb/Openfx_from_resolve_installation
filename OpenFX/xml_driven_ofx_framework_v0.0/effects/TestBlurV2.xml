@@ -5,6 +5,7 @@
     <inputs>
         <source name="Source" label="Input Image" border_mode="clamp" />
         <source name="mask" label="Mask" optional="true" border_mode="black" />
+        <source name="selective" label="selective" optional="true" border_mode="black" />
     </inputs>
     
     <parameters>
@@ -51,8 +52,8 @@
     </identity_conditions>
     
     <kernels>
-        <cuda file="TestBlur.cu" executions="1" />
-        <opencl file="TestBlur.cl" executions="1" />
-        <metal file="TestBlur.metal" executions="1" />
+        <cuda file="TestBlurV2.cu" executions="1" />
+        <opencl file="TestBlurV2.cl" executions="1" />
+        <metal file="TestBlurV2.metal" executions="1" />
     </kernels>
 </effect>
