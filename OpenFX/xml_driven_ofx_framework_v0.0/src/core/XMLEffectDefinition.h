@@ -110,14 +110,15 @@ public:
         std::vector<UIParameterDef> parameters;  ///< Parameters in this column
     };
     
-    /**
-     * @struct UIPageDef
+/**
+     * @struct UIGroupDef
      * @brief Defines a page of parameters in the UI
      */
-    struct UIPageDef {
+    struct UIGroupDef {
         std::string name;        ///< Page name
         std::string tooltip;     ///< Page tooltip
-        std::vector<UIColumnDef> columns;  ///< Columns in this page
+        std::vector<UIColumnDef> columns;  ///< Columns in this page (old format)
+        std::vector<UIParameterDef> parameters;  ///< Direct parameters in this page (new format)
     };
     
     /**
@@ -244,7 +245,7 @@ public:
      * @brief Get the UI organization
      * @return Vector of page definitions
      */
-    const std::vector<UIPageDef>& getUIPages() const;
+    const std::vector<UIGroupDef>& getUIGroups() const;
     
     /**
      * @brief Get the list of kernels
@@ -295,7 +296,7 @@ private:
     std::vector<InputDef> _inputs;
     std::vector<ParameterDef> _parameters;
     std::map<std::string, size_t> _parameterMap;  // Maps parameter names to indices
-    std::vector<UIPageDef> _uiPages;
+    std::vector<UIGroupDef> _uiGroups;
     std::vector<KernelDef> _kernels;
     bool _hasPipeline;
     std::vector<PipelineStepDef> _pipelineSteps;

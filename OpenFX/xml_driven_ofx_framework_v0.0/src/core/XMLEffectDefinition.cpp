@@ -70,8 +70,8 @@ const XMLEffectDefinition::ParameterDef& XMLEffectDefinition::getParameter(const
     return _parameters[it->second];
 }
 
-const std::vector<XMLEffectDefinition::UIPageDef>& XMLEffectDefinition::getUIPages() const {
-    return _uiPages;
+const std::vector<XMLEffectDefinition::UIGroupDef>& XMLEffectDefinition::getUIGroups() const {
+    return _uiGroups;
 }
 
 const std::vector<XMLEffectDefinition::KernelDef>& XMLEffectDefinition::getKernels() const {
@@ -333,27 +333,54 @@ void XMLEffectDefinition::parseParameters(const pugi::xml_node& parametersNode) 
 }
 
 void XMLEffectDefinition::parseUI(const pugi::xml_node& uiNode) {
-    for (pugi::xml_node pageNode : uiNode.children("page")) {
-        UIPageDef page;
-        page.name = pageNode.attribute("name").as_string();
-        page.tooltip = pageNode.attribute("tooltip").as_string();
+    for (pugi::xml_node groupNode : uiNode.children("group")) {
+        UIGroupDef group;
+        group.name = groupNode.attribute("name").as_string();
+        group.tooltip = groupNode.attribute("tooltip").as_string();
         
-        if (page.name.empty()) {
-            throw std::runtime_error("Page must have a name attribute");
+        if (group.name.empty()) {
+            throw std::runtime_error("group must have a name attribute");
         }
         
-        // Parse columns
-        for (pugi::xml_node colNode : pageNode.children("column")) {
-            UIColumnDef column;
-            column.name = colNode.attribute("name").as_string();
-            column.tooltip = colNode.attribute("tooltip").as_string();
-            
-            if (column.name.empty()) {
-                throw std::runtime_error("Column must have a name attribute");
+        // Check if this group has columns (old format) or direct parameters (new format)
+        bool hasColumns = groupNode.child("column");
+        bool hasDirectParams = groupNode.child("parameter");
+        
+        if (hasColumns) {
+            // OLD FORMAT: Parse columns
+            for (pugi::xml_node colNode : groupNode.children("column")) {
+                UIColumnDef column;
+                column.name = colNode.attribute("name").as_string();
+                column.tooltip = colNode.attribute("tooltip").as_string();
+                
+                if (column.name.empty()) {
+                    throw std::runtime_error("Column must have a name attribute");
+                }
+                
+                // Parse parameters in column
+                for (pugi::xml_node paramNode : colNode.children("parameter")) {
+                    UIParameterDef param;
+                    param.name = paramNode.text().as_string();
+                    
+                    if (param.name.empty()) {
+                        throw std::runtime_error("Parameter reference cannot be empty");
+                    }
+                    
+                    // Verify parameter exists
+                    if (_parameterMap.find(param.name) == _parameterMap.end()) {
+                        throw std::runtime_error("Referenced parameter does not exist: " + param.name);
+                    }
+                    
+                    column.parameters.push_back(std::move(param));
+                }
+                
+                group.columns.push_back(std::move(column));
             }
-            
-            // Parse parameters
-            for (pugi::xml_node paramNode : colNode.children("parameter")) {
+        }
+        
+        if (hasDirectParams) {
+            // NEW FORMAT: Parse parameters directly
+            for (pugi::xml_node paramNode : groupNode.children("parameter")) {
                 UIParameterDef param;
                 param.name = paramNode.text().as_string();
                 
@@ -366,15 +393,18 @@ void XMLEffectDefinition::parseUI(const pugi::xml_node& uiNode) {
                     throw std::runtime_error("Referenced parameter does not exist: " + param.name);
                 }
                 
-                column.parameters.push_back(std::move(param));
+                group.parameters.push_back(std::move(param));
             }
-            
-            page.columns.push_back(std::move(column));
         }
         
-        _uiPages.push_back(std::move(page));
+        if (!hasColumns && !hasDirectParams) {
+            throw std::runtime_error("group must contain either columns or direct parameter references");
+        }
+        
+        _uiGroups.push_back(std::move(group));
     }
 }
+
 
 void XMLEffectDefinition::parseKernels(const pugi::xml_node& kernelsNode) {
     for (pugi::xml_node kernelNode : kernelsNode.children()) {

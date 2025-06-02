@@ -1,6 +1,7 @@
 #include "XMLParameterManager.h"
 #include <iostream>
 #include <stdexcept>
+#include "Logger.h"
 
 XMLParameterManager::XMLParameterManager() {
 }
@@ -64,35 +65,69 @@ bool XMLParameterManager::organizeUI(
     std::map<std::string, OFX::PageParamDescriptor*>& pages
 ) {
     try {
-        // Create pages
-        for (const auto& pageDef : xmlDef.getUIPages()) {
-            // Create or get page
-            OFX::PageParamDescriptor* page;
-            auto it = pages.find(pageDef.name);
-            if (it == pages.end()) {
-                page = createPage(pageDef.name, desc);
-                pages[pageDef.name] = page;
-            } else {
-                page = it->second;
+        Logger::getInstance().logMessage("XMLParameterManager::organizeUI starting");
+        
+        // Create a default page if none exists yet
+        OFX::PageParamDescriptor* mainPage;
+        if (pages.empty()) {
+            mainPage = createPage("Main", desc);
+            pages["Main"] = mainPage;
+        } else {
+            mainPage = pages.begin()->second;  // Use first available page
+        }
+        
+        // Create groups for each "group" in XML (these become expandable sections)
+        for (const auto& groupDef : xmlDef.getUIGroups()) {
+            Logger::getInstance().logMessage("Creating group for: %s", groupDef.name.c_str());
+            
+            // Create group parameter (this creates the expandable section)
+            OFX::GroupParamDescriptor* group = desc.defineGroupParam(groupDef.name.c_str());
+            group->setLabels(groupDef.name.c_str(), groupDef.name.c_str(), groupDef.name.c_str());
+            group->setOpen(true);  // Start expanded
+            if (!groupDef.tooltip.empty()) {
+                group->setHint(groupDef.tooltip.c_str());
             }
             
-            // Add parameters to page
-            for (const auto& columnDef : pageDef.columns) {
+            // Add group to the main page
+            mainPage->addChild(*group);
+            
+            // Handle OLD FORMAT: page -> columns -> parameters
+            int paramCount = 0;
+            for (const auto& columnDef : groupDef.columns) {
                 for (const auto& paramDef : columnDef.parameters) {
                     OFX::ParamDescriptor* param = desc.getParamDescriptor(paramDef.name.c_str());
                     if (param) {
-                        page->addChild(*param);
+                        param->setParent(*group);  // Set the group as parent
+                        paramCount++;
+                        Logger::getInstance().logMessage("  Added parameter %s to group %s", 
+                                                       paramDef.name.c_str(), groupDef.name.c_str());
                     } else {
-                        std::cerr << "Warning: Parameter not found: " << paramDef.name << std::endl;
+                        Logger::getInstance().logMessage("  WARNING: Parameter not found: %s", paramDef.name.c_str());
                     }
                 }
             }
+            
+            // Handle NEW FORMAT: page -> parameters directly
+            for (const auto& paramDef : groupDef.parameters) {
+                OFX::ParamDescriptor* param = desc.getParamDescriptor(paramDef.name.c_str());
+                if (param) {
+                    param->setParent(*group);  // Set the group as parent
+                    paramCount++;
+                    Logger::getInstance().logMessage("  Added parameter %s to group %s", 
+                                                   paramDef.name.c_str(), groupDef.name.c_str());
+                } else {
+                    Logger::getInstance().logMessage("  WARNING: Parameter not found: %s", paramDef.name.c_str());
+                }
+            }
+            
+            Logger::getInstance().logMessage("Group %s created with %d parameters", groupDef.name.c_str(), paramCount);
         }
         
+        Logger::getInstance().logMessage("XMLParameterManager::organizeUI completed successfully");
         return true;
     }
     catch (const std::exception& e) {
-        std::cerr << "Error organizing UI: " << e.what() << std::endl;
+        Logger::getInstance().logMessage("ERROR in organizeUI: %s", e.what());
         return false;
     }
 }

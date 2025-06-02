@@ -8,6 +8,11 @@
     </inputs>
     
     <parameters>
+
+        <parameter name="brightness" type="double" default="1.0" min="0.0" max="2.0" 
+                label="Brightness" hint="Test parameter - does not actually work." />
+
+
         <parameter name="radius" type="double" default="30.0" min="0.0" max="100.0" 
                 displayMin="0.0" displayMax="50.0" 
                 label="Blur Radius" hint="Blur radius in pixels" />
@@ -19,25 +24,25 @@
         <parameter name="maskStrength" type="double" default="1.0" min="0.0" max="1.0" 
                 displayMin="0.0" displayMax="1.0" 
                 label="Mask Strength" hint="How strongly the mask affects the blur radius" />
-        <parameter name="brightness" type="double" default="1.0" min="0.0" max="2.0" 
-                label="Brightness" hint="Test parameter - does not actually work." />
+
+
 
 
 
     </parameters>
         
-    <ui>
-        <page name="Basic Controls">
-            <parameter>radius</parameter>
-            <parameter>quality</parameter>
-        </page>
-        <page name="Masking">
-            <parameter>maskStrength</parameter>
-        </page>
-        <page name="Test Parameters">
-            <parameter>brightness</parameter>
-        </page>
-    </ui>
+<ui>
+    <group name="Basic Controls">
+        <parameter>radius</parameter>
+        <parameter>quality</parameter>
+    </group>
+    <group name="Masking">
+        <parameter>maskStrength</parameter>
+    </group>
+    <group name="Test Group">
+        <parameter>brightness</parameter>
+    </group>
+</ui>
     
     <identity_conditions>
         <condition>
