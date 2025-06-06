@@ -28,8 +28,6 @@
 │   ├── test_xml_def
 │   ├── test_xml_input
 │   └── test_xml_param
-├── CudaKernel.cu
-├── CudaKernel.o
 ├── documentation
 │   ├── critical_assessment_250520_1130.md
 │   ├── documentation before leaving for houston - instructions to update docs
@@ -81,6 +79,15 @@
 │   ├── xml_framework_design_notes_250602_1315.md
 │   ├── XMLInputManager-README.md
 │   └── XMLParameterManager-README.md
+├── effects
+│   ├── OpenCLKernel.cl
+│   ├── TestBlurV2.cl
+│   ├── TestBlurV2 copy.cu
+│   ├── TestBlurV2.cu
+│   ├── TestBlurV2_cuda.o
+│   ├── TestBlurV2.metal
+│   ├── TestBlurV2_signature.txt
+│   └── TestBlurV2.xml
 ├── GenericEffectFactory.o
 ├── GenericEffect.o
 ├── GenericPlugin.o
@@ -90,13 +97,14 @@
 │       ├── pugiconfig.hpp
 │       ├── pugixml.cpp
 │       └── pugixml.hpp
+├── KernelRegistry.o
 ├── KernelWrappers.o
 ├── Logger.cpp
 ├── Logger.h
 ├── Logger.o
 ├── Makefile
+├── Makefile copy
 ├── Makefile.xml
-├── MetalKernel.mm
 ├── obsolete
 │   ├── BlurPlugin.cpp
 │   ├── blur_plugin_error_log.txt
@@ -108,6 +116,8 @@
 │   ├── PluginClips.h
 │   ├── PluginParameters.cpp
 │   ├── PluginParameters.h
+│   ├── TestBlurV2.cu
+│   ├── TestBlurV2_signature.txt
 │   └── updated_mid_debug
 │       ├── GenericEffectFactory_mid_debug_at_end_of_prior_chat.cpp
 │       └── GenericEffect_mid_debug_at_end_of_prior_chat.cpp
@@ -119,12 +129,8 @@
 ├── ofxsParams.o
 ├── ofxsProperty.o
 ├── ofxsPropertyValidation.o
-├── OpenCLKernel.cpp
-├── OpenCLKernel.o
 ├── ParameterValue.o
 ├── pugixml.o
-├── python
-│   └── generate_kernel_signature.py
 ├── src
 │   ├── core
 │   │   ├── GenericEffect.cpp
@@ -134,8 +140,15 @@
 │   │   ├── GenericPlugin.cpp
 │   │   ├── GenericProcessor.cpp
 │   │   ├── GenericProcessor.h
+│   │   ├── KernelRegistry.cpp
+│   │   ├── KernelRegistry.h
 │   │   ├── KernelWrappers.cpp
 │   │   ├── KernelWrappers.h
+│   │   ├── obsolete
+│   │   │   ├── GenericProcessor.cpp
+│   │   │   ├── GenericProcessor.h
+│   │   │   ├── KernelWrappers.cpp
+│   │   │   └── KernelWrappers.h
 │   │   ├── ParameterValue.cpp
 │   │   ├── ParameterValue.h
 │   │   ├── XMLEffectDefinition.cpp
@@ -144,18 +157,18 @@
 │   │   ├── XMLInputManager.h
 │   │   ├── XMLParameterManager.cpp
 │   │   └── XMLParameterManager.h
-│   └── tools
+│   └── tests
 │       ├── ParameterValueTest.cpp
 │       ├── XMLEffectDefinitionTest.cpp
 │       ├── XMLInputManagerTest.cpp
 │       └── XMLParameterManagerTest.cpp
-├── TestBlurV2.cu
-├── TestBlurV2_signature.txt
-├── TestBlurV2.xml
-├── tree_as_of_250602_1000
+├── tools
+│   ├── generate_kernel_registry.py
+│   └── generate_kernel_signature.py
+├── tree_as_of_250602_1400.txt
 ├── XMLEffectDefinition.o
 ├── XMLInputManager.o
 └── XMLParameterManager.o
 
-23 directories, 133 files
+25 directories, 144 files
 (base) [flame@george xml_driven_ofx_framework_v0.0]$ 

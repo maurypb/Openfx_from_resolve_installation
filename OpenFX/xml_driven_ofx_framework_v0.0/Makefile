@@ -49,7 +49,7 @@ else
 endif
 
 # New modular components
-PLUGIN_MODULES = Logger.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o 
+PLUGIN_MODULES = Logger.o GenericEffectFactory.o XMLEffectDefinition.o pugixml.o GenericEffect.o GenericProcessor.o ParameterValue.o XMLParameterManager.o XMLInputManager.o KernelWrappers.o KernelRegistry.o
 
 # Main plugin objects
 PLUGIN_OBJS = GenericPlugin.o $(PLUGIN_MODULES)
@@ -116,6 +116,16 @@ GenericProcessor.o: $(CORE_DIR)/GenericProcessor.cpp
 
 ParameterValue.o: $(CORE_DIR)/ParameterValue.cpp
 	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+
+
+# Auto-generate kernel registry from XML files
+$(CORE_DIR)/KernelRegistry.cpp $(CORE_DIR)/KernelRegistry.h: $(wildcard $(EFFECTS_DIR)/*.xml)
+	python3 $(TOOLS_DIR)/generate_kernel_registry.py
+
+# KernelRegistry compilation (depends on generated files)
+KernelRegistry.o: $(CORE_DIR)/KernelRegistry.cpp $(CORE_DIR)/KernelRegistry.h
+	$(CXX) -c $< $(CXXFLAGS) -I./$(SRC_DIR) -I./include/pugixml -I./
+
 
 # Main plugin compilation
 GenericPlugin.o: $(CORE_DIR)/GenericPlugin.cpp

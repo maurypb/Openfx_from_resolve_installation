@@ -27,7 +27,8 @@
                 label="Mask Strength" hint="How strongly the mask affects the blur radius" />
 
 
-
+        <parameter name="redness" type="double" default="1.0" min="-1.0" max="2.0" 
+                label="redness" hint="Test parameter - does not actually work." />
 
 
     </parameters>
@@ -42,6 +43,7 @@
     </group>
     <group name="Test Group">
         <parameter>brightness</parameter>
+        <parameter>redness</parameter>
     </group>
 </ui>
     

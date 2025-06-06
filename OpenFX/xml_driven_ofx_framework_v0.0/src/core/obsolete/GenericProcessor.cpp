@@ -4,6 +4,20 @@
 #include <cstring>
 #include "ParameterValue.h"
 
+// External kernel function declarations (same pattern as BlurPlugin)
+#ifndef __APPLE__
+extern void RunCudaKernel(void* p_Stream, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                         const float* p_Input, const float* p_Mask, float* p_Output);
+#endif
+
+#ifdef __APPLE__
+extern void RunMetalKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                          const float* p_Input, const float* p_Mask, float* p_Output);
+#endif
+
+extern void RunOpenCLKernel(void* p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength, 
+                           const float* p_Input, const float* p_Mask, float* p_Output);
+
 GenericProcessor::GenericProcessor(OFX::ImageEffect& effect, const XMLEffectDefinition& xmlDef)
     : OFX::ImageProcessor(effect), m_xmlDef(xmlDef) {
     
@@ -38,19 +52,19 @@ void GenericProcessor::setParameters(const std::map<std::string, ParameterValue>
 void GenericProcessor::processImagesCUDA() {
 #ifndef __APPLE__
     Logger::getInstance().logMessage("GenericProcessor::processImagesCUDA called");
-    callGenericKernel("cuda");
+    callDynamicKernel("cuda");
 #endif
 }
 
 void GenericProcessor::processImagesOpenCL() {
     Logger::getInstance().logMessage("GenericProcessor::processImagesOpenCL called");
-    callGenericKernel("opencl");
+    callDynamicKernel("opencl");
 }
 
 void GenericProcessor::processImagesMetal() {
 #ifdef __APPLE__
     Logger::getInstance().logMessage("GenericProcessor::processImagesMetal called");
-    callGenericKernel("metal");
+    callDynamicKernel("metal");
 #endif
 }
 
@@ -59,16 +73,9 @@ void GenericProcessor::multiThreadProcessImages(OfxRectI p_ProcWindow) {
     
     // Simple CPU fallback - just copy source to output
     OFX::Image* srcImg = nullptr;
-    
-    // Find the first non-optional input to use as source
-    for (const auto& inputDef : m_xmlDef.getInputs()) {
-        if (!inputDef.optional) {
-            auto srcIt = m_images.find(inputDef.name);
-            if (srcIt != m_images.end()) {
-                srcImg = srcIt->second;
-                break;
-            }
-        }
+    auto srcIt = m_images.find("source");
+    if (srcIt != m_images.end()) {
+        srcImg = srcIt->second;
     }
     
     if (srcImg && _dstImg) {
@@ -96,8 +103,8 @@ void GenericProcessor::multiThreadProcessImages(OfxRectI p_ProcWindow) {
     }
 }
 
-void GenericProcessor::callGenericKernel(const std::string& platform) {
-    Logger::getInstance().logMessage("GenericProcessor::callGenericKernel called for platform: %s", platform.c_str());
+void GenericProcessor::callDynamicKernel(const std::string& platform) {
+    Logger::getInstance().logMessage("GenericProcessor::callDynamicKernel called for platform: %s", platform.c_str());
     
     // Get image dimensions from output image
     if (!_dstImg) {
@@ -120,28 +127,48 @@ void GenericProcessor::callGenericKernel(const std::string& platform) {
     
     Logger::getInstance().logMessage("Found %s kernel: %s", platform.c_str(), kernels[0].file.c_str());
     
-    // Build image map for kernel wrappers (convert OFX::Image* to float*)
-    Logger::getInstance().logMessage("Building image map from XML inputs:");
-    std::map<std::string, float*> imageBuffers;
+    // Build complete parameter map from XML
+    Logger::getInstance().logMessage("Building parameter map from XML:");
+    std::map<std::string, ParameterValue> allParams;
+    for (const auto& paramDef : m_xmlDef.getParameters()) {
+        if (m_paramValues.count(paramDef.name)) {
+            allParams[paramDef.name] = m_paramValues.at(paramDef.name);
+            Logger::getInstance().logMessage("  - %s = %s", paramDef.name.c_str(), 
+                                           allParams[paramDef.name].asString().c_str());
+        } else {
+            // Use XML default if parameter not provided
+            if (paramDef.type == "double" || paramDef.type == "float") {
+                allParams[paramDef.name] = ParameterValue(paramDef.defaultValue);
+            } else if (paramDef.type == "int") {
+                allParams[paramDef.name] = ParameterValue((int)paramDef.defaultValue);
+            } else if (paramDef.type == "bool") {
+                allParams[paramDef.name] = ParameterValue(paramDef.defaultBool);
+            }
+            Logger::getInstance().logMessage("  - %s = %s (XML default)", paramDef.name.c_str(), 
+                                           allParams[paramDef.name].asString().c_str());
+        }
+    }
     
+    // Build complete image map from XML
+    Logger::getInstance().logMessage("Building image map from XML:");
+    std::map<std::string, float*> allImages;
     for (const auto& inputDef : m_xmlDef.getInputs()) {
         if (m_images.count(inputDef.name)) {
-            float* buffer = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
-            imageBuffers[inputDef.name] = buffer;
-            Logger::getInstance().logMessage("  - %s: %p", inputDef.name.c_str(), buffer);
+            allImages[inputDef.name] = static_cast<float*>(m_images.at(inputDef.name)->getPixelData());
+            Logger::getInstance().logMessage("  - %s: %p", inputDef.name.c_str(), allImages[inputDef.name]);
         } else {
             if (!inputDef.optional) {
                 Logger::getInstance().logMessage("ERROR: Required input %s not found", inputDef.name.c_str());
                 return;
             }
-            imageBuffers[inputDef.name] = nullptr;
+            allImages[inputDef.name] = nullptr;
             Logger::getInstance().logMessage("  - %s: null (optional)", inputDef.name.c_str());
         }
     }
     
     // Add output image
     float* output = static_cast<float*>(_dstImg->getPixelData());
-    imageBuffers["output"] = output;
+    allImages["output"] = output;
     Logger::getInstance().logMessage("  - output: %p", output);
     
     // Build border mode map from XML
@@ -152,25 +179,25 @@ void GenericProcessor::callGenericKernel(const std::string& platform) {
         Logger::getInstance().logMessage("  - %s: %s", inputDef.name.c_str(), inputDef.borderMode.c_str());
     }
     
-    // Call the appropriate generic kernel wrapper
-    Logger::getInstance().logMessage("Calling generic kernel wrapper for %s:", platform.c_str());
-    Logger::getInstance().logMessage("  Parameters: %d items", (int)m_paramValues.size());
-    Logger::getInstance().logMessage("  Images: %d items", (int)imageBuffers.size());
+    // Call the generalized kernel wrapper for each platform
+    Logger::getInstance().logMessage("Calling generalized kernel wrapper:");
+    Logger::getInstance().logMessage("  Parameters: %d items", (int)allParams.size());
+    Logger::getInstance().logMessage("  Images: %d items", (int)allImages.size());
     Logger::getInstance().logMessage("  Border modes: %d items", (int)borderModes.size());
     
     if (platform == "cuda") {
 #ifndef __APPLE__
-        RunGenericCudaKernel(_pCudaStream, width, height, m_paramValues, imageBuffers, borderModes, m_xmlDef);
+        RunGenericCudaKernel(_pCudaStream, width, height, allParams, allImages, borderModes);
 #endif
     }
     else if (platform == "opencl") {
-        RunGenericOpenCLKernel(_pOpenCLCmdQ, width, height, m_paramValues, imageBuffers, borderModes, m_xmlDef);
+        RunGenericOpenCLKernel(_pOpenCLCmdQ, width, height, allParams, allImages, borderModes);
     }
     else if (platform == "metal") {
 #ifdef __APPLE__
-        RunGenericMetalKernel(_pMetalCmdQ, width, height, m_paramValues, imageBuffers, borderModes, m_xmlDef);
+        RunGenericMetalKernel(_pMetalCmdQ, width, height, allParams, allImages, borderModes);
 #endif
     }
     
-    Logger::getInstance().logMessage("Generic kernel execution completed");
+    Logger::getInstance().logMessage("Generalized kernel execution completed");
 }

@@ -2,19 +2,17 @@
 #define KERNEL_WRAPPERS_H
 
 #include "ParameterValue.h"
-#include "XMLEffectDefinition.h"
 #include <map>
 #include <string>
 
 /**
- * @brief Generic CUDA kernel wrapper - XML-driven
+ * @brief Generic CUDA kernel wrapper
  * @param stream CUDA stream
  * @param width Image width
  * @param height Image height
  * @param params All parameters from XML as ParameterValue map
  * @param images All images as float* map (keyed by XML input names)
  * @param borderModes Border mode strings for each input (from XML)
- * @param xmlDef XML effect definition for dynamic dispatch
  */
 void RunGenericCudaKernel(
     void* stream,
@@ -22,19 +20,17 @@ void RunGenericCudaKernel(
     int height,
     const std::map<std::string, ParameterValue>& params,
     const std::map<std::string, float*>& images,
-    const std::map<std::string, std::string>& borderModes,
-    const XMLEffectDefinition& xmlDef
+    const std::map<std::string, std::string>& borderModes
 );
 
 /**
- * @brief Generic OpenCL kernel wrapper - XML-driven
+ * @brief Generic OpenCL kernel wrapper
  * @param cmdQueue OpenCL command queue
  * @param width Image width
  * @param height Image height
  * @param params All parameters from XML as ParameterValue map
  * @param images All images as float* map (keyed by XML input names)
  * @param borderModes Border mode strings for each input (from XML)
- * @param xmlDef XML effect definition for dynamic dispatch
  */
 void RunGenericOpenCLKernel(
     void* cmdQueue,
@@ -42,19 +38,17 @@ void RunGenericOpenCLKernel(
     int height,
     const std::map<std::string, ParameterValue>& params,
     const std::map<std::string, float*>& images,
-    const std::map<std::string, std::string>& borderModes,
-    const XMLEffectDefinition& xmlDef
+    const std::map<std::string, std::string>& borderModes
 );
 
 /**
- * @brief Generic Metal kernel wrapper - XML-driven
+ * @brief Generic Metal kernel wrapper
  * @param cmdQueue Metal command queue
  * @param width Image width
  * @param height Image height
  * @param params All parameters from XML as ParameterValue map
  * @param images All images as float* map (keyed by XML input names)
  * @param borderModes Border mode strings for each input (from XML)
- * @param xmlDef XML effect definition for dynamic dispatch
  */
 void RunGenericMetalKernel(
     void* cmdQueue,
@@ -62,8 +56,7 @@ void RunGenericMetalKernel(
     int height,
     const std::map<std::string, ParameterValue>& params,
     const std::map<std::string, float*>& images,
-    const std::map<std::string, std::string>& borderModes,
-    const XMLEffectDefinition& xmlDef
+    const std::map<std::string, std::string>& borderModes
 );
 
 #endif // KERNEL_WRAPPERS_H

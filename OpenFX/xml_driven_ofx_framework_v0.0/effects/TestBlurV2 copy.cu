@@ -8,34 +8,36 @@
 __global__ void TestBlurV2Kernel(
     int width,
     int height,
-    cudaTextureObject_t inputTex,
-    cudaTextureObject_t maskTex,
+    cudaTextureObject_t SourceTex,  // from <source name="Source" optional="False" border_mode="clamp">
+    cudaTextureObject_t maskTex,  // from <source name="mask" optional="True" border_mode="black">
+    bool maskPresent,  // whether mask is connected
+    cudaTextureObject_t selectiveTex,  // from <source name="selective" optional="True" border_mode="black">
+    bool selectivePresent,  // whether selective is connected
     float* output,
-    bool maskPresent,
-    // Auto-generated from XML parameters:
-    float brightness,  // from <parameter name="brightness" type="double">
-    float radius,  // from <parameter name="radius" type="double">
-    int quality,  // from <parameter name="quality" type="int">
-    float maskStrength  // from <parameter name="maskStrength" type="double">
+    float brightness,  // from <parameter name="brightness" type="double" default="1.0">
+    float radius,  // from <parameter name="radius" type="double" default="30.0">
+    int quality,  // from <parameter name="quality" type="int" default="8">
+    float maskStrength  // from <parameter name="maskStrength" type="double" default="1.0">
 )
 {
     // Standard CUDA coordinate calculation
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
-   // Normalize coordinates to [0,1] range for texture fetch
-   float u = (x + 0.5f) / width;
-   float v = (y + 0.5f) / height;
- 
-    if ((x < width) && (y < height))
-    {
-        // Output index
-        const int index = ((y * width) + x) * 4;
+
+    if ((x < width) && (y < height)) {
+        // Normalize coordinates to [0,1] range for texture sampling
+        float u = (x + 0.5f) / width;
+        float v = (y + 0.5f) / height;
         
+        // Calculate output array index
+        const int index = ((y * width) + x) * 4;
+
+   
         // Read mask value if available
         float maskValue = 1.0f;  // Default to full blur 
         
         // Sample directly from source image
-        float4 srcColor = tex2D<float4>(inputTex, u, v);
+        float4 srcColor = tex2D<float4>(SourceTex, u, v);
         
         if (maskPresent) {
             if (maskStrength >= 0.0f) {
@@ -80,7 +82,7 @@ __global__ void TestBlurV2Kernel(
                 float sample_v = (sampleY + 0.5f) / height;
                 
                 // Sample using texture
-                float4 color = tex2D<float4>(inputTex, sample_u, sample_v);
+                float4 color = tex2D<float4>(SourceTex, sample_u, sample_v);
                 
                 // Calculate weight (simplified for now)
                 float weight = 1.0f;
@@ -113,12 +115,16 @@ __global__ void TestBlurV2Kernel(
 // Bridge function - connects framework to your kernel
 extern "C" void call_testblurv2_kernel(
     void* stream, int width, int height,
+    cudaTextureObject_t SourceTex,
+    cudaTextureObject_t maskTex,
+    bool maskPresent,
+    cudaTextureObject_t selectiveTex,
+    bool selectivePresent,
+    float* output,
     float brightness,
     float radius,
     int quality,
-    float maskStrength,
-    cudaTextureObject_t inputTex, cudaTextureObject_t maskTex,
-    float* output, bool maskPresent
+    float maskStrength
 ) {
     cudaStream_t cudaStream = static_cast<cudaStream_t>(stream);
 
@@ -128,7 +134,14 @@ extern "C" void call_testblurv2_kernel(
 
     // Launch the kernel
     TestBlurV2Kernel<<<blocks, threads, 0, cudaStream>>>(
-        width, height, inputTex, maskTex, output, maskPresent,
+        width,
+        height,
+        SourceTex,
+        maskTex,
+        maskPresent,
+        selectiveTex,
+        selectivePresent,
+        output,
         brightness,
         radius,
         quality,

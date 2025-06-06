@@ -54,10 +54,10 @@ public:
 
 private:
     /**
-     * @brief Call generic kernel for specific platform with XML-driven dispatch
+     * @brief Call dynamic kernel for specific platform
      * @param platform Platform name ("cuda", "opencl", "metal")
      */
-    void callGenericKernel(const std::string& platform);
+    void callDynamicKernel(const std::string& platform);
 };
 
 #endif // GENERIC_PROCESSOR_H

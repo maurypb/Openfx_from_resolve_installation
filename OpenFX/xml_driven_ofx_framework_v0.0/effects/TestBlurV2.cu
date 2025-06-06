@@ -28,11 +28,10 @@ __global__ void TestBlurV2Kernel(
         // Normalize coordinates to [0,1] range for texture sampling
         float u = (x + 0.5f) / width;
         float v = (y + 0.5f) / height;
-        
         // Calculate output array index
         const int index = ((y * width) + x) * 4;
 
-   
+    
         // Read mask value if available
         float maskValue = 1.0f;  // Default to full blur 
         
@@ -49,16 +48,16 @@ __global__ void TestBlurV2Kernel(
                 maskValue = 0.0f;
             }
         }
- 
+
         // Calculate effective blur radius based on mask
         float effectiveRadius = radius * maskValue;
         
         // Early exit if no blur needed (either radius is 0 or mask is 0)
         if (effectiveRadius <= 0.0f) {
             // Just copy the source pixel - no blur applied
-            output[index + 0] = srcColor.x;
-            output[index + 1] = srcColor.y;
-            output[index + 2] = srcColor.z;
+            output[index + 0] = srcColor.x*brightness;
+            output[index + 1] = srcColor.y*brightness;
+            output[index + 2] = srcColor.z*brightness;
             output[index + 3] = srcColor.w;
             return;
         }
@@ -103,12 +102,17 @@ __global__ void TestBlurV2Kernel(
             sum.z /= weightSum;
             sum.w /= weightSum;
         }
-        
+        sum.x = sum.x * brightness;
+        sum.y=sum.y * brightness;
+        sum.z=sum.z*brightness;
+ 
         // Write to output
         output[index + 0] = sum.x;
         output[index + 1] = sum.y;
         output[index + 2] = sum.z;
         output[index + 3] = sum.w;
+
+
     }
 }
 

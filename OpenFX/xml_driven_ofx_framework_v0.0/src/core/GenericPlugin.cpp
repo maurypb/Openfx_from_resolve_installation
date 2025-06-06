@@ -13,7 +13,8 @@ void testGenericEffectFactory() {
     Logger::getInstance().logMessage("=== Testing GenericEffectFactory ===");
     
     try {
-        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml";
+        // TODO auto-discover xml files in effects/ folder
+        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
         
         Logger::getInstance().logMessage("Creating GenericEffectFactory...");
         GenericEffectFactory factory(xmlPath);
@@ -128,7 +129,7 @@ void OFX::Plugin::getPluginIDs(OFX::PluginFactoryArray& p_FactoryArray) {
     //Logger::getInstance().logMessage("✓ Test factory registered");
     // Register the real XML-driven plugin
     Logger::getInstance().logMessage("About to try XML plugin registration...");
-    std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/TestBlurV2.xml";
+    std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
     
     try {
         Logger::getInstance().logMessage("creating GenericEffectFactory with the xmlPath");
