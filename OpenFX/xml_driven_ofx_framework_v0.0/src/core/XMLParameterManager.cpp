@@ -1,7 +1,7 @@
 #include "XMLParameterManager.h"
 #include <iostream>
 #include <stdexcept>
-#include "Logger.h"
+#include "../../Logger.h"
 
 XMLParameterManager::XMLParameterManager() {
 }

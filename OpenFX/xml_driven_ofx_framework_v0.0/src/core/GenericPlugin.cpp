@@ -5,16 +5,22 @@
 #include "ofxsLog.h"
 #include "ofxDrawSuite.h"
 #include "ofxsSupportPrivate.h"
-#include "src/core/GenericEffectFactory.h"
-#include "include/pugixml/pugixml.hpp"
-#include "Logger.h"
+#include "GenericEffectFactory.h"
+#include "../../include/pugixml/pugixml.hpp"
+#include "../../Logger.h"
 
 void testGenericEffectFactory() {
     Logger::getInstance().logMessage("=== Testing GenericEffectFactory ===");
     
     try {
         // TODO auto-discover xml files in effects/ folder
-        std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+        // Use cross-platform path resolution
+        std::string xmlPath;
+#ifdef _WIN32
+        xmlPath = "z:/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+#else
+        xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+#endif
         
         Logger::getInstance().logMessage("Creating GenericEffectFactory...");
         GenericEffectFactory factory(xmlPath);
@@ -129,7 +135,13 @@ void OFX::Plugin::getPluginIDs(OFX::PluginFactoryArray& p_FactoryArray) {
     //Logger::getInstance().logMessage("✓ Test factory registered");
     // Register the real XML-driven plugin
     Logger::getInstance().logMessage("About to try XML plugin registration...");
-    std::string xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+    // Use cross-platform path resolution
+    std::string xmlPath;
+#ifdef _WIN32
+    xmlPath = "z:/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+#else
+    xmlPath = "/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0/effects/TestBlurV2.xml";
+#endif
     
     try {
         Logger::getInstance().logMessage("creating GenericEffectFactory with the xmlPath");

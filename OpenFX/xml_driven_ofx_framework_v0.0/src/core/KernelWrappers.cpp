@@ -1,5 +1,5 @@
 #include "KernelWrappers.h"
-#include "../Logger.h"
+#include "../../Logger.h"
 #include "ParameterValue.h"
 #include <map>
 #include <string>
@@ -150,8 +150,7 @@ void RunGenericCudaKernel(
                                              inputName.c_str(), inputPresent ? "true" : "false");
         }
     }
-// we are having a "flickering" issue, where the matte seems to go away for a frame here and there.
-//this cudaDeviceSynchronize is a band-aid, not a fix, as it is too agressive (makes the whole device finish, not the stream)
+
     // Synchronize immediately after all texture creation to ensure uploads complete
     cudaDeviceSynchronize(); 
 
@@ -220,75 +219,91 @@ void RunGenericCudaKernel(
 
     Logger::getInstance().logMessage("  Built kernel argument list with %d arguments", (int)kernelArgs.size());
 
-    // 5. Extract arguments and call kernel through registry
-    void **args = kernelArgs.data();
-    int argIndex = 0;
-
-    int w = *static_cast<int *>(args[argIndex++]);
-    int h = *static_cast<int *>(args[argIndex++]);
-
-    std::vector<cudaTextureObject_t> textures;
-    std::vector<bool> presenceFlags;
-
-    for (const auto &inputDef : xmlDef.getInputs())
-    {
-        cudaTextureObject_t tex = *static_cast<cudaTextureObject_t *>(args[argIndex++]);
-        textures.push_back(tex);
-
-        if (inputDef.optional)
-        {
-            bool present = *static_cast<bool *>(args[argIndex++]);
-            presenceFlags.push_back(present);
-        }
-    }
-
-    float *out = *static_cast<float **>(args[argIndex++]);
-
-    std::vector<float> floatParams;
-    std::vector<int> intParams;
-
-    for (const auto &paramDef : xmlDef.getParameters())
-    {
-        if (paramDef.type == "double" || paramDef.type == "float")
-        {
-            float val = *static_cast<float *>(args[argIndex++]);
-            floatParams.push_back(val);
-        }
-        else if (paramDef.type == "int" || paramDef.type == "choice")
-        {
-            int val = *static_cast<int *>(args[argIndex++]);
-            intParams.push_back(val);
-        }
-        else if (paramDef.type == "bool")
-        {
-            bool val = *static_cast<bool *>(args[argIndex++]);
-            // Handle bool params if needed
-        }
-    }
-
-    // Synchronize to ensure all texture uploads are complete before kernel execution
-    // cudaStreamSynchronize(cudaStream);
-
-    // Call kernel through registry
+    // Call kernel through registry with standardized interface
     std::string effectName = xmlDef.getName();
     Logger::getInstance().logMessage("  Looking up kernel function in registry for: %s", effectName.c_str());
 
     KernelFunction kernelFunc = getKernelFunction(effectName);
-    if (kernelFunc)
-    {
+    if (kernelFunc) {
         Logger::getInstance().logMessage("  Found kernel function in registry");
-        Logger::getInstance().logMessage("  Float params size: %d, Int params size: %d", (int)floatParams.size(), (int)intParams.size());
+        
+        // Prepare standardized parameter arrays
+        std::vector<float> floatParamArray;
+        std::vector<int> intParamArray;
+        std::vector<char> boolParamArray;  // Use char instead of bool (std::vector<bool> issue)
+        
+        // Pack parameters by type from XML order
+        for (const auto &paramDef : xmlDef.getParameters()) {
+            const std::string &paramName = paramDef.name;
+            
+            if (params.count(paramName)) {
+                const ParameterValue &value = params.at(paramName);
+                
+                if (paramDef.type == "double" || paramDef.type == "float") {
+                    floatParamArray.push_back(value.asFloat());
+                } else if (paramDef.type == "int" || paramDef.type == "choice") {
+                    intParamArray.push_back(value.asInt());
+                } else if (paramDef.type == "bool") {
+                    boolParamArray.push_back(value.asBool() ? 1 : 0);  // Convert bool to char
+                } else {
+                    // Default to float for unknown types
+                    floatParamArray.push_back(value.asFloat());
+                }
+            } else {
+                // Use defaults for missing parameters
+                if (paramDef.type == "double" || paramDef.type == "float") {
+                    floatParamArray.push_back(static_cast<float>(paramDef.defaultValue));
+                } else if (paramDef.type == "int" || paramDef.type == "choice") {
+                    intParamArray.push_back(static_cast<int>(paramDef.defaultValue));
+                } else if (paramDef.type == "bool") {
+                    boolParamArray.push_back(paramDef.defaultBool ? 1 : 0);  // Convert bool to char
+                } else {
+                    floatParamArray.push_back(static_cast<float>(paramDef.defaultValue));
+                }
+            }
+        }
+        
+        // Prepare texture array and presence flags
+        std::vector<void*> textureArray;
+        std::vector<char> presenceArray;  // Use char instead of bool (std::vector<bool> issue)
+        
+        for (const auto &inputDef : xmlDef.getInputs()) {
+            const std::string &inputName = inputDef.name;
+            
+            // Find corresponding texture
+            cudaTextureObject_t tex = 0;
+            bool present = false;
+            
+            for (size_t i = 0; i < createdTextures.size() && i < xmlDef.getInputs().size(); ++i) {
+                if (xmlDef.getInputs()[i].name == inputName) {
+                    tex = createdTextures[i];
+                    present = (tex != 0);
+                    break;
+                }
+            }
+            
+            textureArray.push_back((void*)(uintptr_t)tex);
+            if (inputDef.optional) {
+                presenceArray.push_back(present ? 1 : 0);  // Convert bool to char
+            }
+        }
+        
+        Logger::getInstance().logMessage("  Calling standardized kernel interface:");
+        Logger::getInstance().logMessage("    Textures: %d, Presence flags: %d", (int)textureArray.size(), (int)presenceArray.size());
+        Logger::getInstance().logMessage("    Float params: %d, Int params: %d, Bool params: %d", 
+                                       (int)floatParamArray.size(), (int)intParamArray.size(), (int)boolParamArray.size());
+        
+        // Call the standardized kernel function
+        typedef void (*StandardKernelSig)(void*, int, int, void**, int, bool*, float*, float*, int*, bool*);
+        StandardKernelSig func = (StandardKernelSig)kernelFunc;
+        
+        func(stream, width, height,
+             textureArray.data(), (int)textureArray.size(), (bool*)presenceArray.data(),
+             output,
+             floatParamArray.data(), intParamArray.data(), (bool*)boolParamArray.data());
 
-        kernelFunc(stream, w, h,
-                   (void *)(uintptr_t)textures[0], (void *)(uintptr_t)textures[1], presenceFlags.empty() ? false : presenceFlags[0],
-                   (void *)(uintptr_t)textures[2], presenceFlags.size() > 1 ? presenceFlags[1] : false,
-                   out,
-                   floatParams[0], floatParams[1], intParams[0], floatParams[2]);
-
-        Logger::getInstance().logMessage("  ✓ Registry kernel call completed");
-    }
-    else
-    {
+        Logger::getInstance().logMessage("  ✓ Standardized kernel call completed");
+    } else {
         Logger::getInstance().logMessage("  ERROR: No kernel function found in registry for '%s'", effectName.c_str());
     }
 
@@ -397,4 +412,24 @@ void RunGenericMetalKernel(
 
     Logger::getInstance().logMessage("RunGenericMetalKernel completed");
 #endif
+}
+
+// Stub implementation for OpenCL kernel - not implemented yet
+void RunOpenCLKernel(void *p_CmdQ, int p_Width, int p_Height, float p_Radius, int p_Quality, float p_MaskStrength,
+                     const float *p_Input, const float *p_Mask, float *p_Output)
+{
+    Logger::getInstance().logMessage("RunOpenCLKernel called - OpenCL not implemented yet, using CPU fallback");
+    
+    // Simple CPU fallback implementation for now
+    if (!p_Input || !p_Output) {
+        Logger::getInstance().logMessage("ERROR: Invalid input/output pointers in OpenCL fallback");
+        return;
+    }
+    
+    // Simple copy operation as fallback
+    for (int i = 0; i < p_Width * p_Height * 4; i++) {
+        p_Output[i] = p_Input[i];
+    }
+    
+    Logger::getInstance().logMessage("OpenCL fallback completed");
 }

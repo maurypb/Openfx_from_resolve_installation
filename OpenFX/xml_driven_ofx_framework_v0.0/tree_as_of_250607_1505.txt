@@ -1,4 +1,6 @@
-(base) [flame@george xml_driven_ofx_framework_v0.0]$ tree
+(pytorch-env) (base) [flame@george xml_driven_ofx_framework_v0.0]$ pwd
+/mnt/tank/PROJECTS/SOFTWARE_PROJECTS/ofx/Starting_again_250504/Openfx_from_resolve_installation/OpenFX/xml_driven_ofx_framework_v0.0
+(pytorch-env) (base) [flame@george xml_driven_ofx_framework_v0.0]$ tree
 .
 ├── BlurPlugin.ofx
 ├── BlurPlugin.ofx.bundle
@@ -30,9 +32,11 @@
 │   └── test_xml_param
 ├── documentation
 │   ├── critical_assessment_250520_1130.md
+│   ├── current_implementation_phase_4.md
 │   ├── documentation before leaving for houston - instructions to update docs
 │   ├── enhanced-xml-schema_250517_1100.md
 │   ├── genericeffect_design_250526_1200.md
+│   ├── hardware_locked_licensing_narrative.md
 │   ├── obsolete
 │   │   ├── CudaKernel copy.cu
 │   │   ├── genericeffect_design(step_3_of_implementation)250525_1230.md
@@ -58,6 +62,7 @@
 │   │   ├── xml_driven_ofx_generation_framework-specification_250518_1306.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250518_1356.md
 │   │   ├── xml_driven_ofx_generation_framework-specification_250526_1310.md
+│   │   ├── xml_driven_ofx_generation_framework-specification_250602_1255.md
 │   │   ├── xml_driven_ofx_generation_framework-specification.md
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250517_1550.md
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250518_1244.md
@@ -65,18 +70,21 @@
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250518_1415.md
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250525_1230.md
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250526_1323.md
+│   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250601_1230.md
+│   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250604_1130.md
 │   │   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_v1.md
 │   │   ├── xml_driven_ofx_generation_framework_version2-implementation-plan.md
 │   │   ├── xml_driven_ofx_generation_implementation-plan.md
 │   │   ├── xml_framework_design_notes_250518_1310.md
-│   │   └── xml_framework_design_notes_250518_1508.md
+│   │   ├── xml_framework_design_notes_250518_1508.md
+│   │   └── xml_framework_design_notes_250602_1315.md
 │   ├── ofx-modification-guide.txt
 │   ├── pitfalls and limitations at phase 3 completion , before houston trip for dads bday
-│   ├── xml_driven_ofx_generation_framework-specification_250602_1255.md
-│   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250601_1230.md
+│   ├── xml_driven_ofx_generation_framework-specification_250602_2346.md
+│   ├── xml_driven_ofx_generation_framework_version1_implementation-plan_250604_1246.md
 │   ├── xml_driven_ofx_generation_framework_version2-implementation-plan_250516_2355.md
 │   ├── XMLEffectDefinition-README.md
-│   ├── xml_framework_design_notes_250602_1315.md
+│   ├── xml_framework_design_notes_250602_2331.md
 │   ├── XMLInputManager-README.md
 │   └── XMLParameterManager-README.md
 ├── effects
@@ -86,6 +94,7 @@
 │   ├── TestBlurV2.cu
 │   ├── TestBlurV2_cuda.o
 │   ├── TestBlurV2.metal
+│   ├── TestBlurV2_minimal.cu
 │   ├── TestBlurV2_signature.txt
 │   └── TestBlurV2.xml
 ├── GenericEffectFactory.o
@@ -165,10 +174,10 @@
 ├── tools
 │   ├── generate_kernel_registry.py
 │   └── generate_kernel_signature.py
-├── tree_as_of_250602_1400.txt
+├── tree_as_of_250602_2035.txt
 ├── XMLEffectDefinition.o
 ├── XMLInputManager.o
 └── XMLParameterManager.o
 
-25 directories, 144 files
-(base) [flame@george xml_driven_ofx_framework_v0.0]$ 
+25 directories, 151 files
+(pytorch-env) (base) [flame@george xml_driven_ofx_framework_v0.0]$ 

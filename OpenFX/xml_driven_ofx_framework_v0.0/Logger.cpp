@@ -7,7 +7,7 @@
 Logger* Logger::m_Instance = nullptr;
 
 Logger::Logger() {
-    m_LogFile = fopen("/tmp/blur_plugin_log.txt", "w");
+    m_LogFile = fopen("blur_plugin_log.txt", "w");
     if (m_LogFile) {
         fprintf(m_LogFile, "=== New BlurPlugin Session Started ===\n");
         fflush(m_LogFile);

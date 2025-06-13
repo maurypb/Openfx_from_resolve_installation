@@ -41,7 +41,7 @@ else
 	NVCC = "${CUDAPATH}/bin/nvcc.exe"
 	NVCCFLAGS = --compiler-options="/MD"
 	LDFLAGS = /DLL /SUBSYSTEM:WINDOWS
-	BUNDLE_DIR = BlurPlugin.ofx.bundle/Win64/
+	BUNDLE_DIR = BlurPlugin.ofx.bundle/Contents/Win64/
 	CUDA_OBJ = $(EFFECTS_DIR)/TestBlurV2_cuda.obj
 	OPENCL_OBJ = $(EFFECTS_DIR)/TestBlurV2_opencl.obj
 	METAL_OBJ = 

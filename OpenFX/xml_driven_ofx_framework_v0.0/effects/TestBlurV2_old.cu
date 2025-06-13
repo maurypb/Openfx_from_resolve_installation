@@ -3,23 +3,22 @@
 
 #include <cuda_runtime.h>
 #include <cmath>
-#include <cstdint>  // For uintptr_t
-
+#include <cstdint>
 // Image processing kernel - implement your algorithm here
 __global__ void TestBlurV2Kernel(
     int width,
     int height,
-    cudaTextureObject_t SourceTex,
-    cudaTextureObject_t maskTex,
-    bool maskPresent,
-    cudaTextureObject_t selectiveTex,
-    bool selectivePresent,
+    cudaTextureObject_t SourceTex,  // from <source name="Source" optional="False" border_mode="clamp">,
+    cudaTextureObject_t maskTex,  // from <source name="mask" optional="True" border_mode="black">,
+    bool maskPresent , // whether mask is connected,
+    cudaTextureObject_t selectiveTex , // from <source name="selective" optional="True" border_mode="black">,
+    bool selectivePresent , // whether selective is connected,
     float* output,
-    float brightness,
-    float radius,
-    int quality,
-    float maskStrength,
-    float redness
+    float brightness , // from <parameter name="brightness" type="double" default="1.0">,
+    float radius , // from <parameter name="radius" type="double" default="30.0">,
+    int quality , // from <parameter name="quality" type="int" default="8">,
+    float maskStrength , // from <parameter name="maskStrength" type="double" default="1.0">,
+    float redness  // from <parameter name="redness" type="double" default="1.0">
 )
 {
     // Standard CUDA coordinate calculation
@@ -30,11 +29,10 @@ __global__ void TestBlurV2Kernel(
         // Normalize coordinates to [0,1] range for texture sampling
         float u = (x + 0.5f) / width;
         float v = (y + 0.5f) / height;
-        
         // Calculate output array index
         const int index = ((y * width) + x) * 4;
 
-
+    
         // Read mask value if available
         float maskValue = 1.0f;  // Default to full blur 
         
@@ -55,19 +53,19 @@ __global__ void TestBlurV2Kernel(
         // Calculate effective blur radius based on mask
         float effectiveRadius = radius * maskValue;
         
-        // // Early exit if no blur needed (either radius is 0 or mask is 0)
-        // if (effectiveRadius <= 0.0f) {
-        //     // Just copy the source pixel - no blur applied
-        //     output[index + 0] = srcColor.x*brightness+redness;
-        //     output[index + 1] = srcColor.y*brightness;
-        //     output[index + 2] = srcColor.z*brightness;
-        //     output[index + 3] = srcColor.w;
-        //     return;
-        // }
+        // Early exit if no blur needed (either radius is 0 or mask is 0)
+        if (effectiveRadius <= 0.0f) {
+            // Just copy the source pixel - no blur applied
+            output[index + 0] = srcColor.x*brightness+redness;
+            output[index + 1] = srcColor.y*brightness;
+            output[index + 2] = srcColor.z*brightness;
+            output[index + 3] = srcColor.w;
+            return;
+        }
         
-        // Gaussian blur implementation (lousy)
-        float4 sum = srcColor;  // Start with the source pixel
-        float weightSum = 1.0f;  // Center pixel has weight 1
+        // Gaussian blur implementation
+        float4 sum = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
+        float weightSum = 0.0f;
         
         // Perform sampling in a circle
         for (int i = 0; i < quality; ++i) {
@@ -114,6 +112,7 @@ __global__ void TestBlurV2Kernel(
         output[index + 1] = sum.y;
         output[index + 2] = sum.z;
         output[index + 3] = sum.w;
+
 
     }
 }

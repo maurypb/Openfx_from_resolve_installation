@@ -3,7 +3,7 @@
 Kernel Signature Generator for XML-driven OFX Framework
 
 Reads XML effect definitions and generates CUDA kernel function signatures
-with parameters in the correct order for the framework to call.
+with standardized wrapper interface for the framework.
 """
 
 import xml.etree.ElementTree as ET
@@ -15,13 +15,13 @@ def validate_xml_syntax(xml_file):
     try:
         tree = ET.parse(xml_file)
         root = tree.getroot()
-        print(f"✓ XML syntax valid")
+        print("XML syntax valid")
         return tree, root
     except ET.ParseError as e:
-        print(f"✗ XML syntax error: {e}")
+        print("✗ XML syntax error: " + str(e))
         return None, None
     except FileNotFoundError:
-        print(f"✗ File not found: {xml_file}")
+        print("✗ File not found: " + xml_file)
         return None, None
 
 def validate_xml_structure(root):
@@ -67,13 +67,13 @@ def validate_xml_structure(root):
             errors.append("Parameter has empty 'name' attribute")
         
         if not param_type:
-            errors.append(f"Parameter '{param_name}' missing 'type' attribute")
+            errors.append("Parameter '" + param_name + "' missing 'type' attribute")
         elif param_type not in valid_param_types:
-            errors.append(f"Parameter '{param_name}' has invalid type '{param_type}'. Valid types: {', '.join(valid_param_types)}")
+            errors.append("Parameter '" + param_name + "' has invalid type '" + param_type + "'. Valid types: " + ', '.join(valid_param_types))
         
         # Check for default value
         if not param.get('default'):
-            errors.append(f"Parameter '{param_name}' missing 'default' attribute")
+            errors.append("Parameter '" + param_name + "' missing 'default' attribute")
     
     # Validate inputs
     if inputs_section is not None:
@@ -85,120 +85,71 @@ def validate_xml_structure(root):
             border_mode = source.get('border_mode', 'clamp')
             valid_border_modes = ['clamp', 'repeat', 'mirror', 'black']
             if border_mode not in valid_border_modes:
-                errors.append(f"Input '{source_name}' has invalid border_mode '{border_mode}'. Valid modes: {', '.join(valid_border_modes)}")
+                errors.append("Input '" + source_name + "' has invalid border_mode '" + border_mode + "'. Valid modes: " + ', '.join(valid_border_modes))
     
     return errors
 
-def map_xml_type_to_cuda(xml_type):
-    """Map XML parameter types to CUDA types"""
-    type_mapping = {
-        'double': 'float',
-        'float': 'float', 
-        'int': 'int',
-        'bool': 'bool',
-        'string': 'const char*',  # Note: strings need special handling
-        'choice': 'int',
-        'color': 'float3',        # RGB color
-        'vec2': 'float2',
-        'vec3': 'float3',
-        'vec4': 'float4',
-        'curve': 'float'          # Simplified for now
-    }
-    return type_mapping.get(xml_type, 'float')  # Default to float
-
-def generate_kernel_signature(root):
-    """Generate CUDA kernel function signature from XML - completely XML-driven"""
+def generate_cuda_skeleton(root):
+    """Generate complete CUDA file skeleton with standardized wrapper"""
     effect_name = root.get('name', 'UnknownEffect')
     
-    # Build complete parameter list - only from XML, nothing hard-coded
-    all_params = []
+    code_lines = []
+    code_lines.append("// " + effect_name + ".cu - Generated skeleton")
+    code_lines.append("// Fill in the image processing logic in the kernel function")
+    code_lines.append("")
+    code_lines.append("#include <cuda_runtime.h>")
+    code_lines.append("#include <cmath>")
+    code_lines.append("#include <cstdint>  // For uintptr_t")
+    code_lines.append("")
     
-    # Fixed parameters (always present in framework)
-    all_params.append(("int", "width", ""))
-    all_params.append(("int", "height", ""))
+    # Generate the __global__ kernel signature with XML-driven parameters
+    code_lines.append("// Image processing kernel - implement your algorithm here")
+    code_lines.append("__global__ void " + effect_name + "Kernel(")
     
-    # Add XML-defined inputs dynamically - no assumptions about names or count
+    # Build parameter list for the actual kernel
+    params = []
+    params.append("int width")
+    params.append("int height")
+    
+    # Add XML-defined inputs
     inputs_section = root.find('inputs')
     if inputs_section is not None:
         for input_def in inputs_section.findall('source'):
             input_name = input_def.get('name')
             is_optional = input_def.get('optional', 'false').lower() == 'true'
-            border_mode = input_def.get('border_mode', 'clamp')
-            label = input_def.get('label', input_name)
             
-            # Add texture object parameter
-            comment = f"// from <source name=\"{input_name}\" optional=\"{is_optional}\" border_mode=\"{border_mode}\">"
-            all_params.append(("cudaTextureObject_t", f"{input_name}Tex", comment))
+            params.append("cudaTextureObject_t " + input_name + "Tex")
             
-            # Add boolean for optional inputs only
             if is_optional:
-                all_params.append(("bool", f"{input_name}Present", f"// whether {input_name} is connected"))
+                params.append("bool " + input_name + "Present")
     
-    # Add output (always present in framework)
-    all_params.append(("float*", "output", ""))
+    params.append("float* output")
     
-    # Add XML-defined parameters - completely driven by XML structure
+    # Add XML-defined parameters
     params_section = root.find('parameters')
     if params_section is not None:
         for param in params_section.findall('parameter'):
             param_name = param.get('name')
             param_type = param.get('type')
-            default_val = param.get('default', 'N/A')
-            cuda_type = map_xml_type_to_cuda(param_type)
-            comment = f"// from <parameter name=\"{param_name}\" type=\"{param_type}\" default=\"{default_val}\">"
-            all_params.append((cuda_type, param_name, comment))
+            
+            if param_type in ['double', 'float']:
+                c_type = 'float'
+            elif param_type == 'int':
+                c_type = 'int'
+            elif param_type == 'bool':
+                c_type = 'bool'
+            else:
+                c_type = 'float'
+                
+            params.append(c_type + " " + param_name)
     
-    # Start building signature
-    signature_lines = []
-    signature_lines.append(f"// Generated from {effect_name}.xml")
-    signature_lines.append(f"__global__ void {effect_name}Kernel(")
+    # Write kernel parameters
+    for i, param in enumerate(params):
+        comma = "," if i < len(params) - 1 else ""
+        code_lines.append("    " + param + comma)
     
-    # Generate parameters with correct comma placement
-    for i, (param_type, param_name, comment) in enumerate(all_params):
-        comma = "," if i < len(all_params) - 1 else ""
-        if comment:
-            signature_lines.append(f"    {param_type} {param_name}{comma}  {comment}")
-        else:
-            signature_lines.append(f"    {param_type} {param_name}{comma}")
-    
-    signature_lines.append(");")
-    
-    return "\n".join(signature_lines)
-
-def generate_cuda_skeleton(root):
-    """Generate complete CUDA file skeleton for the kernel author"""
-    effect_name = root.get('name', 'UnknownEffect')
-    
-    code_lines = []
-    code_lines.append(f"// {effect_name}.cu - Generated skeleton")
-    code_lines.append(f"// Fill in the image processing logic in the kernel function")
-    code_lines.append("")
-    code_lines.append("#include <cuda_runtime.h>")
-    code_lines.append("#include <cmath>")
-    code_lines.append("")
-    
-    # Generate the __global__ kernel signature
-    code_lines.append("// Image processing kernel - implement your algorithm here")
-    kernel_sig = generate_kernel_signature(root)
-    
-    # Process the signature lines properly
-    kernel_lines = kernel_sig.split('\n')
-    inside_signature = False
-    
-    for line in kernel_lines:
-        if line.startswith('//') and 'Generated from' in line:
-            continue  # Skip the comment line
-        elif line.startswith('__global__'):
-            inside_signature = True
-            code_lines.append(line)
-        elif inside_signature and line.endswith(');'):
-            # This is the closing line - replace ); with ) {
-            code_lines.append(line.replace(');', ')'))
-            code_lines.append('{')
-            break
-        elif inside_signature:
-            code_lines.append(line)
-    
+    code_lines.append(")")
+    code_lines.append("{")
     code_lines.append("    // Standard CUDA coordinate calculation")
     code_lines.append("    const int x = blockIdx.x * blockDim.x + threadIdx.x;")
     code_lines.append("    const int y = blockIdx.y * blockDim.y + threadIdx.y;")
@@ -214,19 +165,18 @@ def generate_cuda_skeleton(root):
     code_lines.append("        // TODO: Implement your image processing algorithm here")
     code_lines.append("        // Sample from input textures:")
     
-    # Generate texture sampling examples for each input defined in XML
-    inputs_section = root.find('inputs')
+    # Generate texture sampling examples
     if inputs_section is not None:
         for input_def in inputs_section.findall('source'):
             input_name = input_def.get('name')
             is_optional = input_def.get('optional', 'false').lower() == 'true'
             
             if is_optional:
-                code_lines.append(f"        // if ({input_name}Present) {{")
-                code_lines.append(f"        //     float4 {input_name.lower()}Color = tex2D<float4>({input_name}Tex, u, v);")
-                code_lines.append(f"        // }}")
+                code_lines.append("        // if (" + input_name + "Present) {")
+                code_lines.append("        //     float4 " + input_name.lower() + "Color = tex2D<float4>(" + input_name + "Tex, u, v);")
+                code_lines.append("        // }")
             else:
-                code_lines.append(f"        // float4 {input_name.lower()}Color = tex2D<float4>({input_name}Tex, u, v);")
+                code_lines.append("        // float4 " + input_name.lower() + "Color = tex2D<float4>(" + input_name + "Tex, u, v);")
     
     code_lines.append("")
     code_lines.append("        // Write to output")
@@ -235,83 +185,95 @@ def generate_cuda_skeleton(root):
     code_lines.append("        // output[index + 2] = result.z;  // Blue")
     code_lines.append("        // output[index + 3] = result.w;  // Alpha")
     code_lines.append("    }")
-    code_lines.append("}")  # Close the __global__ function
+    code_lines.append("}")
     code_lines.append("")
     
-    # Generate the bridge function - must match kernel parameter order exactly
-    code_lines.append("// Bridge function - connects framework to your kernel")
-    code_lines.append(f"extern \"C\" void call_{effect_name.lower()}_kernel(")
-    code_lines.append("    void* stream, int width, int height,")
+    # Generate the standardized wrapper function
+    code_lines.append("// Standardized wrapper function - framework calls this")
+    code_lines.append("extern \"C\" void call_" + effect_name.lower() + "_kernel(")
+    code_lines.append("    void* stream,")
+    code_lines.append("    int width,")
+    code_lines.append("    int height,")
+    code_lines.append("    void** textures,")
+    code_lines.append("    int textureCount,")
+    code_lines.append("    bool* presenceFlags,")
+    code_lines.append("    float* output,")
+    code_lines.append("    float* floatParams,")
+    code_lines.append("    int* intParams,")
+    code_lines.append("    bool* boolParams")
+    code_lines.append(") {")
+    code_lines.append("    cudaStream_t cudaStream = static_cast<cudaStream_t>(stream);")
+    code_lines.append("")
+    code_lines.append("    // Unpack texture objects")
     
-    # Build bridge function parameters to match kernel order
-    bridge_params = []
-    
-    # Add input textures (matching the kernel's dynamic input order)
-    inputs_section = root.find('inputs')
+    # Generate texture unpacking
+    tex_index = 0
     if inputs_section is not None:
         for input_def in inputs_section.findall('source'):
             input_name = input_def.get('name')
-            bridge_params.append(f"cudaTextureObject_t {input_name}Tex")
-            
-            is_optional = input_def.get('optional', 'false').lower() == 'true'
-            if is_optional:
-                bridge_params.append(f"bool {input_name}Present")
+            code_lines.append("    cudaTextureObject_t " + input_name + "Tex = (cudaTextureObject_t)(uintptr_t)textures[" + str(tex_index) + "];")
+            tex_index += 1
     
-    # Add output
-    bridge_params.append("float* output")
+    code_lines.append("")
+    code_lines.append("    // Unpack parameters")
     
-    # Add XML parameters in same order as kernel
-    params_section = root.find('parameters')
+    # Generate parameter unpacking
+    float_index = 0
+    int_index = 0
+    bool_index = 0
+    
     if params_section is not None:
-        parameters = params_section.findall('parameter')
-        for param in parameters:
+        for param in params_section.findall('parameter'):
             param_name = param.get('name')
             param_type = param.get('type')
-            cuda_type = map_xml_type_to_cuda(param_type)
-            bridge_params.append(f"{cuda_type} {param_name}")
+            
+            if param_type in ['double', 'float']:
+                code_lines.append("    float " + param_name + " = floatParams[" + str(float_index) + "];")
+                float_index += 1
+            elif param_type == 'int':
+                code_lines.append("    int " + param_name + " = intParams[" + str(int_index) + "];")
+                int_index += 1
+            elif param_type == 'bool':
+                code_lines.append("    bool " + param_name + " = boolParams[" + str(bool_index) + "];")
+                bool_index += 1
+            else:
+                code_lines.append("    float " + param_name + " = floatParams[" + str(float_index) + "];  // " + param_type + " -> float")
+                float_index += 1
     
-    # Write bridge function parameters
-    for i, param in enumerate(bridge_params):
-        comma = "," if i < len(bridge_params) - 1 else ""
-        code_lines.append(f"    {param}{comma}")
-    
-    code_lines.append(") {")
-    code_lines.append("    cudaStream_t cudaStream = static_cast<cudaStream_t>(stream);")
     code_lines.append("")
     code_lines.append("    // Launch configuration")
     code_lines.append("    dim3 threads(16, 16, 1);")
     code_lines.append("    dim3 blocks(((width + threads.x - 1) / threads.x), ((height + threads.y - 1) / threads.y), 1);")
     code_lines.append("")
     code_lines.append("    // Launch the kernel")
-    code_lines.append(f"    {effect_name}Kernel<<<blocks, threads, 0, cudaStream>>>(")
+    code_lines.append("    " + effect_name + "Kernel<<<blocks, threads, 0, cudaStream>>>(")
     
-    # Build kernel call arguments in exact same order as kernel signature
-    kernel_args = ["width", "height"]
+    # Generate kernel call arguments
+    call_args = ["width", "height"]
     
-    # Add input textures in same order
+    # Add texture arguments
     if inputs_section is not None:
         for input_def in inputs_section.findall('source'):
             input_name = input_def.get('name')
-            kernel_args.append(f"{input_name}Tex")
-            
             is_optional = input_def.get('optional', 'false').lower() == 'true'
+            
+            call_args.append(input_name + "Tex")
             if is_optional:
-                kernel_args.append(f"{input_name}Present")
+                presence_index = len([i for i in inputs_section.findall('source')[:inputs_section.findall('source').index(input_def)] if i.get('optional', 'false').lower() == 'true'])
+                call_args.append("presenceFlags[" + str(presence_index) + "]")
     
-    # Add output
-    kernel_args.append("output")
+    call_args.append("output")
     
-    # Add XML parameters
+    # Add parameter arguments
     if params_section is not None:
-        parameters = params_section.findall('parameter')
-        for param in parameters:
+        for param in params_section.findall('parameter'):
             param_name = param.get('name')
-            kernel_args.append(param_name)
+            call_args.append(param_name)
     
     # Write kernel call arguments
-    for i, arg in enumerate(kernel_args):
-        comma = "," if i < len(kernel_args) - 1 else ""
-        code_lines.append(f"        {arg}{comma}")
+    for i, arg in enumerate(call_args):
+        comma = "," if i < len(call_args) - 1 else ""
+        code_lines.append("        " + arg + comma)
     
     code_lines.append("    );")
     code_lines.append("}")
@@ -326,7 +288,7 @@ def main():
     
     xml_file = sys.argv[1]
     
-    print(f"Generating kernel signature from: {xml_file}")
+    print("Generating standardized kernel template from: " + xml_file)
     print("=" * 50)
     
     # Step 1: Validate XML syntax
@@ -339,33 +301,27 @@ def main():
     if errors:
         print("✗ XML structure validation failed:")
         for error in errors:
-            print(f"  - {error}")
+            print("  - " + error)
         sys.exit(1)
     
-    print("✓ XML structure validation passed")
+    print("XML structure validation passed")
     print()
     
     # Step 3: Generate kernel skeleton
-    print("Generated CUDA Kernel Skeleton:")
+    print("Generated CUDA Kernel Template:")
     print("-" * 40)
     skeleton = generate_cuda_skeleton(root)
     print(skeleton)
     print()
     
-    print("✓ Generation complete!")
+    print("Generation complete!")
     
     # Write skeleton to file
     base_name = os.path.splitext(xml_file)[0]
     
-    with open(f"{base_name}_template.cu", 'w') as f:
+    with open(base_name + "_template.cu", 'w') as f:
         f.write(skeleton)
-    print(f"✓ CUDA template written to: {base_name}_template.cu")
-    
-    # Also generate just the signature for reference
-    signature = generate_kernel_signature(root)
-    with open(f"{base_name}_signature.txt", 'w') as f:
-        f.write(signature)
-    print(f"✓ Signature reference written to: {base_name}_signature.txt")
+    print("CUDA template written to: " + base_name + "_template.cu")
 
 if __name__ == "__main__":
     main()

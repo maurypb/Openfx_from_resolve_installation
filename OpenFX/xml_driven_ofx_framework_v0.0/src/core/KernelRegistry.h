@@ -10,13 +10,12 @@
  * DO NOT EDIT MANUALLY - changes will be overwritten
  */
 
-// Kernel function type
+// Standardized kernel function type - all kernels use this signature
 typedef void (*KernelFunction)(
     void* stream, int width, int height,
-    void* texture1, void* texture2, bool present1,
-    void* texture3, bool present2,
+    void** textures, int textureCount, bool* presenceFlags,
     float* output,
-    float param1, float param2, int param3, float param4
+    float* floatParams, int* intParams, bool* boolParams
 );
 
 /**

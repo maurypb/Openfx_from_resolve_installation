@@ -27,7 +27,8 @@
                 label="Mask Strength" hint="How strongly the mask affects the blur radius" />
 
 
-        <parameter name="redness" type="double" default="1.0" min="-1.0" max="2.0" 
+        <parameter name="redness" type="double" default="0.0" min="-1.0" max="2.0" 
+                displayMin="0.0" displayMax="1.0"
                 label="redness" hint="Test parameter - does not actually work." />
 
 
@@ -46,13 +47,13 @@
         <parameter>redness</parameter>
     </group>
 </ui>
-    
+    <!--  commenting out identity for now
     <identity_conditions>
         <condition>
             <parameter name="radius" operator="lessEqual" value="0.0" />
         </condition>
     </identity_conditions>
-    
+    -->
     <kernels>
         <cuda file="TestBlurV2.cu" executions="1" />
         <opencl file="TestBlurV2.cl" executions="1" />
